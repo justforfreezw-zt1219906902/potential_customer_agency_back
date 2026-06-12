@@ -2,7 +2,7 @@
 
 A simple Go backend starter for a future B2B SaaS application.
 
-The current service accepts lead submissions, ensures the company exists in HubSpot, creates or updates the contact, and associates the contact with the company.
+The current service accepts lead submissions, ensures the company exists in HubSpot, creates or updates the contact, associates the contact with the company, and sends an internal notification email.
 
 ## Stack
 
@@ -52,6 +52,8 @@ cp .env.example .env
 ```bash
 HUBSPOT_ACCESS_TOKEN=pat-na1-your-token-here
 CORS_ALLOWED_ORIGINS=*
+RESEND_API_KEY=re_xxxxxxxxx
+NOTIFICATION_EMAILS=['sales@mi-goto.com','email2','email3']
 ```
 
 4. Install dependencies:
@@ -76,6 +78,8 @@ Set these environment variables on your deployment platform:
 PORT=8080
 HUBSPOT_ACCESS_TOKEN=pat-na1-your-token-here
 CORS_ALLOWED_ORIGINS=https://your-frontend-domain.com
+RESEND_API_KEY=re_xxxxxxxxx
+NOTIFICATION_EMAILS=['sales@mi-goto.com','email2','email3']
 ```
 
 For multiple frontend domains, separate them with commas:
@@ -85,6 +89,20 @@ CORS_ALLOWED_ORIGINS=https://app.example.com,https://www.example.com
 ```
 
 The backend handles browser `OPTIONS` preflight requests in code, so it does not depend on platform-specific CORS settings.
+
+## Lead Flow
+
+```text
+POST /api/lead
+↓
+HubSpot contact created or updated
+↓
+Internal notification email sent with Resend
+↓
+Success response returned
+```
+
+If the internal email fails, the error is logged but the API still returns success after HubSpot succeeds.
 
 ## API
 

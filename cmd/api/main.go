@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/justforfreezw-zt1219906902/potential_customer_agency_back/config"
+	"github.com/justforfreezw-zt1219906902/potential_customer_agency_back/internal/email"
 	"github.com/justforfreezw-zt1219906902/potential_customer_agency_back/internal/handler"
 	"github.com/justforfreezw-zt1219906902/potential_customer_agency_back/internal/hubspot"
 	"github.com/justforfreezw-zt1219906902/potential_customer_agency_back/internal/middleware"
@@ -24,7 +25,8 @@ func main() {
 	}
 
 	hubSpotClient := hubspot.NewClient(cfg.HubSpotAccessToken, logger)
-	leadService := service.NewLeadService(hubSpotClient, logger)
+	emailService := email.NewResendEmailService(cfg.ResendAPIKey, cfg.NotificationEmails, logger)
+	leadService := service.NewLeadService(hubSpotClient, emailService, logger)
 	leadHandler := handler.NewLeadHandler(leadService, logger)
 
 	router := gin.New()
