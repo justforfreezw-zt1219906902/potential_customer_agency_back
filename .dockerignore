@@ -1,0 +1,10 @@
+.env
+.env.local
+.git
+.idea
+tmp
+bin
+*.log
+*.test
+coverage.*
+docker-compose.yml

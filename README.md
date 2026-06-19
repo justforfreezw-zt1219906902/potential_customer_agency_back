@@ -160,7 +160,18 @@ go run ./cmd/api
 
 ### Railway Deployment
 
-Railway should execute only this script:
+Railway should use the project `Dockerfile` instead of default Nixpacks.
+
+The Docker image installs:
+
+- Go runtime
+- Liquibase CLI
+- PostgreSQL JDBC driver
+- application source code
+- `db/changelog`
+- `scripts`
+
+The Dockerfile final command is:
 
 ```bash
 ./scripts/railway-start.sh
