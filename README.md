@@ -41,28 +41,52 @@ The current service accepts lead submissions, ensures the company exists in HubS
 
 1. Install Go 1.24 or newer.
 
-2. Copy the example environment file:
+2. Install Docker and Liquibase.
+
+3. Copy the example environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-3. Set your HubSpot private app access token in `.env`:
+4. Set your environment variables in `.env`:
 
 ```bash
+PORT=8080
 HUBSPOT_ACCESS_TOKEN=pat-na1-your-token-here
 CORS_ALLOWED_ORIGINS=*
 RESEND_API_KEY=re_xxxxxxxxx
 NOTIFICATION_EMAILS=['sales@mi-goto.com','email2','email3']
+POSTGRES_DB=potential_customer
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_SSLMODE=disable
+DATABASE_URL=postgres://localhost:5432/potential_customer?sslmode=disable
 ```
 
-4. Install dependencies:
+`DATABASE_URL` should contain only the database address. The Liquibase script always reads credentials from `POSTGRES_USER` and `POSTGRES_PASSWORD`.
+
+5. Install Go dependencies:
 
 ```bash
 go mod tidy
 ```
 
-5. Start the API:
+6. Start local PostgreSQL manually:
+
+```bash
+./scripts/db-local-up.sh
+```
+
+7. Run Liquibase migrations:
+
+```bash
+./scripts/liquibase-migrate.sh
+```
+
+8. Start the API:
 
 ```bash
 go run ./cmd/api
@@ -72,7 +96,7 @@ The server starts on `http://localhost:8080` by default.
 
 ## Deployment Notes
 
-Set these environment variables on your deployment platform:
+Set these environment variables on Railway:
 
 ```bash
 PORT=8080
@@ -80,6 +104,9 @@ HUBSPOT_ACCESS_TOKEN=pat-na1-your-token-here
 CORS_ALLOWED_ORIGINS=https://your-frontend-domain.com
 RESEND_API_KEY=re_xxxxxxxxx
 NOTIFICATION_EMAILS=['sales@mi-goto.com','email2','email3']
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your-railway-password
+DATABASE_URL=postgres://your-railway-host:5432/railway?sslmode=require
 ```
 
 For multiple frontend domains, separate them with commas:
@@ -89,6 +116,67 @@ CORS_ALLOWED_ORIGINS=https://app.example.com,https://www.example.com
 ```
 
 The backend handles browser `OPTIONS` preflight requests in code, so it does not depend on platform-specific CORS settings.
+
+## PostgreSQL And Liquibase
+
+Schema changes are handled by Liquibase only. The Go application should not create or alter database tables directly.
+
+Changelog files live under:
+
+```text
+db/changelog/db.changelog-master.yaml
+db/changelog/changes/001-create-leads-table.yaml
+```
+
+### Local Development
+
+Local PostgreSQL is started manually by developers:
+
+```bash
+./scripts/db-local-up.sh
+```
+
+This script uses Docker Compose and reads database settings from `.env.local` if present, otherwise from `.env`.
+
+Run migrations:
+
+```bash
+./scripts/liquibase-migrate.sh
+```
+
+Start the backend:
+
+```bash
+go run ./cmd/api
+```
+
+Expected local workflow:
+
+```text
+./scripts/db-local-up.sh
+./scripts/liquibase-migrate.sh
+go run ./cmd/api
+```
+
+### Railway Deployment
+
+Railway should execute only this script:
+
+```bash
+./scripts/railway-start.sh
+```
+
+The Railway script does this:
+
+```text
+Run Liquibase migration
+↓
+If migration succeeds, start Go backend
+↓
+If migration fails, stop deployment
+```
+
+Do not run `scripts/db-local-up.sh` in Railway. Railway PostgreSQL should provide `DATABASE_URL`.
 
 ## Lead Flow
 
