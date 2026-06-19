@@ -63,10 +63,10 @@ POSTGRES_PASSWORD=postgres
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 POSTGRES_SSLMODE=disable
-DATABASE_URL=postgres://localhost:5432/potential_customer?sslmode=disable
+DATABASE_URL=postgres://localhost:5432?sslmode=disable
 ```
 
-`DATABASE_URL` should contain only the database address. The Liquibase script always reads credentials from `POSTGRES_USER` and `POSTGRES_PASSWORD`.
+`DATABASE_URL` should contain only the database address. The Liquibase script reads credentials from `POSTGRES_USER` / `PGUSER`, reads the password from `POSTGRES_PASSWORD` / `PGPASSWORD`, and reads the database name from `POSTGRES_DB` / `PGDATABASE`.
 
 5. Install Go dependencies:
 
@@ -106,7 +106,8 @@ RESEND_API_KEY=re_xxxxxxxxx
 NOTIFICATION_EMAILS=['sales@mi-goto.com','email2','email3']
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your-railway-password
-DATABASE_URL=postgres://your-railway-host:5432/railway?sslmode=require
+POSTGRES_DB=your-railway-database
+DATABASE_URL=postgres://your-railway-host:5432?sslmode=require
 ```
 
 For multiple frontend domains, separate them with commas:

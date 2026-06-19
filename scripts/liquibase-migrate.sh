@@ -38,32 +38,52 @@ DB_PASSWORD=""
 JDBC_URL=""
 
 : "${DATABASE_URL:?DATABASE_URL is required}"
-: "${POSTGRES_USER:?POSTGRES_USER is required}"
-: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}"
 
-DB_USERNAME="$POSTGRES_USER"
-DB_PASSWORD="$POSTGRES_PASSWORD"
+DB_USERNAME="${POSTGRES_USER:-${PGUSER:-}}"
+DB_PASSWORD="${POSTGRES_PASSWORD:-${PGPASSWORD:-}}"
+DB_NAME="${POSTGRES_DB:-${PGDATABASE:-}}"
+
+if [[ -z "$DB_USERNAME" ]]; then
+  echo "POSTGRES_USER or PGUSER is required"
+  exit 1
+fi
+
+if [[ -z "$DB_PASSWORD" ]]; then
+  echo "POSTGRES_PASSWORD or PGPASSWORD is required"
+  exit 1
+fi
 
 echo "Using DATABASE_URL for database address"
-echo "Using POSTGRES_USER and POSTGRES_PASSWORD for credentials"
+echo "Using POSTGRES_USER/PGUSER and POSTGRES_PASSWORD/PGPASSWORD for credentials"
+echo "Using POSTGRES_DB/PGDATABASE for database name when provided"
 
-if [[ "$DATABASE_URL" =~ ^jdbc:postgresql://(.+)$ ]]; then
-  JDBC_URL="$DATABASE_URL"
-elif [[ "$DATABASE_URL" =~ ^postgres(ql)?://([^@/]+@)?([^:/?]+):?([0-9]*)/([^?]+)(\?(.*))?$ ]]; then
+if [[ "$DATABASE_URL" =~ ^jdbc:postgresql://([^:/?]+):?([0-9]*)(/([^?]+))?(\?(.*))?$ ]]; then
+  DB_HOST="${BASH_REMATCH[1]}"
+  DB_PORT="${BASH_REMATCH[2]:-5432}"
+  URL_DB_NAME="${BASH_REMATCH[4]:-}"
+  DB_QUERY="${BASH_REMATCH[6]:-}"
+elif [[ "$DATABASE_URL" =~ ^postgres(ql)?://([^@/]+@)?([^:/?]+):?([0-9]*)(/([^?]+))?(\?(.*))?$ ]]; then
   DB_HOST="${BASH_REMATCH[3]}"
   DB_PORT="${BASH_REMATCH[4]:-5432}"
-  DB_NAME="${BASH_REMATCH[5]}"
-  DB_QUERY="${BASH_REMATCH[7]:-}"
-
-  JDBC_URL="jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}"
-  if [[ -n "$DB_QUERY" ]]; then
-    JDBC_URL="${JDBC_URL}?${DB_QUERY}"
-  fi
+  URL_DB_NAME="${BASH_REMATCH[6]:-}"
+  DB_QUERY="${BASH_REMATCH[8]:-}"
 else
   echo "DATABASE_URL must be a database address, for example:"
+  echo "  postgres://localhost:5432?sslmode=disable"
   echo "  postgres://localhost:5432/potential_customer?sslmode=disable"
-  echo "  jdbc:postgresql://localhost:5432/potential_customer?sslmode=disable"
+  echo "  jdbc:postgresql://localhost:5432?sslmode=disable"
   exit 1
+fi
+
+DB_NAME="${DB_NAME:-$URL_DB_NAME}"
+if [[ -z "$DB_NAME" ]]; then
+  echo "POSTGRES_DB or PGDATABASE is required when DATABASE_URL does not include a database name"
+  exit 1
+fi
+
+JDBC_URL="jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}"
+if [[ -n "$DB_QUERY" ]]; then
+  JDBC_URL="${JDBC_URL}?${DB_QUERY}"
 fi
 
 echo "Running Liquibase migration"
