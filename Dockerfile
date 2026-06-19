@@ -10,7 +10,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
-        openjdk-21-jre-headless \
+        openjdk-17-jre-headless \
         tar \
     && rm -rf /var/lib/apt/lists/*
 
