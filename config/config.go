@@ -12,6 +12,7 @@ type Config struct {
 	HubSpotAccessToken string
 	CORSAllowedOrigins string
 	ResendAPIKey       string
+	ResendFromEmail    string
 	NotificationEmails []string
 }
 
@@ -23,6 +24,7 @@ func Load() Config {
 		HubSpotAccessToken: os.Getenv("HUBSPOT_ACCESS_TOKEN"),
 		CORSAllowedOrigins: getEnv("CORS_ALLOWED_ORIGINS", "*"),
 		ResendAPIKey:       os.Getenv("RESEND_API_KEY"),
+		ResendFromEmail:    getEnv("RESEND_FROM_EMAIL", "Potential Customer Agency <hello@mi-goto.com>"),
 		NotificationEmails: parseEmailList(getEnv("NOTIFICATION_EMAILS", "sales@mi-goto.com")),
 	}
 }

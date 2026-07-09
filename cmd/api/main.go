@@ -25,7 +25,7 @@ func main() {
 	}
 
 	hubSpotClient := hubspot.NewClient(cfg.HubSpotAccessToken, logger)
-	emailService := email.NewResendEmailService(cfg.ResendAPIKey, cfg.NotificationEmails, logger)
+	emailService := email.NewResendEmailService(cfg.ResendAPIKey, cfg.ResendFromEmail, cfg.NotificationEmails, logger)
 	leadService := service.NewLeadService(hubSpotClient, emailService, logger)
 	leadHandler := handler.NewLeadHandler(leadService, logger)
 

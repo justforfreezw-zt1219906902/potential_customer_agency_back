@@ -16,7 +16,6 @@ import (
 
 const (
 	resendBaseURL = "https://api.resend.com"
-	defaultFrom   = "Potential Customer Agency <onboarding@resend.dev>"
 )
 
 type EmailService interface {
@@ -31,10 +30,10 @@ type ResendEmailService struct {
 	logger     *log.Logger
 }
 
-func NewResendEmailService(apiKey string, recipients []string, logger *log.Logger) *ResendEmailService {
+func NewResendEmailService(apiKey string, from string, recipients []string, logger *log.Logger) *ResendEmailService {
 	return &ResendEmailService{
 		apiKey:     apiKey,
-		from:       defaultFrom,
+		from:       from,
 		recipients: recipients,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
@@ -46,6 +45,9 @@ func NewResendEmailService(apiKey string, recipients []string, logger *log.Logge
 func (s *ResendEmailService) SendLeadNotification(ctx context.Context, lead models.LeadRequest, hubSpotContactID string, submittedAt time.Time) error {
 	if strings.TrimSpace(s.apiKey) == "" {
 		return fmt.Errorf("RESEND_API_KEY is required")
+	}
+	if strings.TrimSpace(s.from) == "" {
+		return fmt.Errorf("RESEND_FROM_EMAIL is required")
 	}
 	if len(s.recipients) == 0 {
 		return fmt.Errorf("at least one notification email is required")
