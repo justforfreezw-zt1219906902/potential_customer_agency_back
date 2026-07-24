@@ -56,7 +56,7 @@ PORT=8080
 HUBSPOT_ACCESS_TOKEN=pat-na1-your-token-here
 CORS_ALLOWED_ORIGINS=*
 RESEND_API_KEY=re_xxxxxxxxx
-RESEND_FROM_EMAIL=Potential Customer Agency <hello@mi-goto.com>
+RESEND_FROM_EMAIL="Mi Goto <onboarding@resend.dev>"
 NOTIFICATION_EMAILS=['sales@mi-goto.com','email2','email3']
 POSTGRES_DB=potential_customer
 POSTGRES_USER=postgres
@@ -104,7 +104,7 @@ PORT=8080
 HUBSPOT_ACCESS_TOKEN=pat-na1-your-token-here
 CORS_ALLOWED_ORIGINS=https://your-frontend-domain.com
 RESEND_API_KEY=re_xxxxxxxxx
-RESEND_FROM_EMAIL=Potential Customer Agency <hello@mi-goto.com>
+RESEND_FROM_EMAIL="Mi Goto <hello@mi-goto.com>"
 NOTIFICATION_EMAILS=['sales@mi-goto.com','email2','email3']
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your-railway-password
@@ -223,7 +223,8 @@ Request body:
   "firstName": "John",
   "familyName": "Doe",
   "company": "Example Inc",
-  "workEmail": "john@example.com"
+  "workEmail": "john@example.com",
+  "owner": "90579791"
 }
 ```
 
@@ -253,7 +254,8 @@ curl -X POST http://localhost:8080/api/lead \
     "firstName": "John",
     "familyName": "Doe",
     "company": "Example Inc",
-    "workEmail": "john@example.com"
+    "workEmail": "john@example.com",
+    "owner": "90579791"
   }'
 ```
 

@@ -291,9 +291,10 @@ type associationRequest struct {
 
 func contactProperties(lead models.LeadRequest) map[string]string {
 	properties := map[string]string{
-		"email":     lead.WorkEmail,
-		"firstname": lead.FirstName,
-		"lastname":  lead.FamilyName,
+		"email":            lead.WorkEmail,
+		"firstname":        lead.FirstName,
+		"lastname":         lead.FamilyName,
+		"hubspot_owner_id": lead.Owner,
 	}
 
 	for key, value := range properties {
