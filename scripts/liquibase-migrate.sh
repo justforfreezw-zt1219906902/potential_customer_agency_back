@@ -10,16 +10,45 @@ cd "$ROOT_DIR"
 
 CHANGELOG_FILE="db/changelog/db.changelog-master.yaml"
 
+load_env_file() {
+  local env_file="$1"
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+
+    if [[ -z "$line" || "$line" == \#* || "$line" != *=* ]]; then
+      continue
+    fi
+
+    local key="${line%%=*}"
+    local value="${line#*=}"
+
+    key="${key#"${key%%[![:space:]]*}"}"
+    key="${key%"${key##*[![:space:]]}"}"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+    value="${value%\"}"
+    value="${value#\"}"
+    value="${value%\'}"
+    value="${value#\'}"
+
+    case "$key" in
+      DATABASE_URL|POSTGRES_DB|POSTGRES_USER|POSTGRES_PASSWORD|POSTGRES_SSLMODE|PGDATABASE|PGUSER|PGPASSWORD)
+        if [[ -z "${!key:-}" ]]; then
+          export "$key=$value"
+        fi
+        ;;
+    esac
+  done < "$env_file"
+}
+
 if [[ -f ".env.local" ]]; then
   echo "Loading local environment from .env.local"
-  set -a
-  source ".env.local"
-  set +a
+  load_env_file ".env.local"
 elif [[ -f ".env" ]]; then
   echo "Loading local environment from .env"
-  set -a
-  source ".env"
-  set +a
+  load_env_file ".env"
 fi
 
 if [[ ! -f "$CHANGELOG_FILE" ]]; then

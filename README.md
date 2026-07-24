@@ -129,6 +129,7 @@ Changelog files live under:
 ```text
 db/changelog/db.changelog-master.yaml
 db/changelog/changes/001-create-leads-table.yaml
+db/changelog/changes/002-update-leads-for-short-form.yaml
 ```
 
 ### Local Development

@@ -1,0 +1,39 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-update-leads-for-short-form
+      author: codex
+      changes:
+        - dropIndex:
+            tableName: leads
+            indexName: idx_leads_email
+        - renameColumn:
+            tableName: leads
+            oldColumnName: name
+            newColumnName: first_name
+            columnDataType: VARCHAR(255)
+        - addColumn:
+            tableName: leads
+            columns:
+              - column:
+                  name: family_name
+                  type: VARCHAR(255)
+                  defaultValue: ""
+                  constraints:
+                    nullable: false
+        - renameColumn:
+            tableName: leads
+            oldColumnName: email
+            newColumnName: work_email
+            columnDataType: VARCHAR(255)
+        - dropColumn:
+            tableName: leads
+            columnName: website
+        - dropColumn:
+            tableName: leads
+            columnName: phone_number
+        - createIndex:
+            tableName: leads
+            indexName: idx_leads_work_email
+            columns:
+              - column:
+                  name: work_email
