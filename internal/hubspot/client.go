@@ -152,7 +152,7 @@ func (c *Client) CreateContact(ctx context.Context, lead models.LeadRequest) (Co
 		return Contact{}, fmt.Errorf("HubSpot contact create response did not include id")
 	}
 
-	c.logger.Printf("HubSpot contact created: id=%s email=%s", response.ID, lead.Email)
+	c.logger.Printf("HubSpot contact created: id=%s email=%s", response.ID, lead.WorkEmail)
 	return Contact{ID: response.ID}, nil
 }
 
@@ -174,7 +174,7 @@ func (c *Client) UpdateContact(ctx context.Context, contactID string, lead model
 		return Contact{}, fmt.Errorf("HubSpot contact update response did not include id")
 	}
 
-	c.logger.Printf("HubSpot contact updated: id=%s email=%s", response.ID, lead.Email)
+	c.logger.Printf("HubSpot contact updated: id=%s email=%s", response.ID, lead.WorkEmail)
 	return Contact{ID: response.ID}, nil
 }
 
@@ -290,13 +290,10 @@ type associationRequest struct {
 }
 
 func contactProperties(lead models.LeadRequest) map[string]string {
-	firstName, lastName := splitName(lead.Name)
 	properties := map[string]string{
-		"email":            lead.Email,
-		"firstname":        firstName,
-		"lastname":         lastName,
-		"phone":            lead.PhoneNumber,
-		"hubspot_owner_id": lead.Owner,
+		"email":     lead.WorkEmail,
+		"firstname": lead.FirstName,
+		"lastname":  lead.FamilyName,
 	}
 
 	for key, value := range properties {
@@ -306,15 +303,4 @@ func contactProperties(lead models.LeadRequest) map[string]string {
 	}
 
 	return properties
-}
-
-func splitName(name string) (string, string) {
-	parts := strings.Fields(name)
-	if len(parts) == 0 {
-		return "", ""
-	}
-	if len(parts) == 1 {
-		return parts[0], ""
-	}
-	return parts[0], strings.Join(parts[1:], " ")
 }

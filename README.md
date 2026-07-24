@@ -219,12 +219,10 @@ Request body:
 
 ```json
 {
-  "name": "John Doe",
-  "email": "john@example.com",
+  "firstName": "John",
+  "familyName": "Doe",
   "company": "Example Inc",
-  "website": "https://example.com",
-  "phoneNumber": "+1 555 0100",
-  "owner": "123456"
+  "workEmail": "john@example.com"
 }
 ```
 
@@ -241,7 +239,7 @@ Error response:
 
 ```json
 {
-  "error": "email must be valid"
+  "error": "workEmail must be valid"
 }
 ```
 
@@ -251,16 +249,14 @@ Error response:
 curl -X POST http://localhost:8080/api/lead \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "John Doe",
-    "email": "john@example.com",
-  "company": "Example Inc",
-  "website": "https://example.com",
-  "phoneNumber": "+1 555 0100",
-  "owner": "123456"
+    "firstName": "John",
+    "familyName": "Doe",
+    "company": "Example Inc",
+    "workEmail": "john@example.com"
   }'
 ```
 
-The `website` domain is used to find an existing HubSpot company. If no company exists for that domain, the API creates one first, then creates or updates the contact and associates it to the company through the legacy association API.
+The `workEmail` domain is used to find an existing HubSpot company. If no company exists for that domain, the API creates one first, then creates or updates the contact and associates it to the company through the legacy association API.
 
 ## Future Placeholders
 

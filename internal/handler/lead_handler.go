@@ -44,6 +44,6 @@ func (h *LeadHandler) CreateLead(c *gin.Context) {
 		return
 	}
 
-	h.logger.Printf("lead created: email=%s company=%s", request.Email, request.Company)
+	h.logger.Printf("lead created: email=%s company=%s", request.WorkEmail, request.Company)
 	c.JSON(http.StatusOK, response)
 }

@@ -46,23 +46,23 @@ func (s *LeadService) CreateLead(ctx context.Context, lead models.LeadRequest) (
 		company = &createdCompany
 	}
 
-	contact, err := s.hubSpot.FindContactByEmail(ctx, lead.Email)
+	contact, err := s.hubSpot.FindContactByEmail(ctx, lead.WorkEmail)
 	if err != nil {
-		s.logger.Printf("failed to search HubSpot contact: email=%s error=%v", lead.Email, err)
+		s.logger.Printf("failed to search HubSpot contact: email=%s error=%v", lead.WorkEmail, err)
 		return models.LeadResponse{}, apperrors.ExternalService("failed to search contact in HubSpot", err)
 	}
 
 	if contact == nil {
 		createdContact, err := s.hubSpot.CreateContact(ctx, lead)
 		if err != nil {
-			s.logger.Printf("failed to create HubSpot contact: email=%s error=%v", lead.Email, err)
+			s.logger.Printf("failed to create HubSpot contact: email=%s error=%v", lead.WorkEmail, err)
 			return models.LeadResponse{}, apperrors.ExternalService("failed to create contact in HubSpot", err)
 		}
 		contact = &createdContact
 	} else {
 		updatedContact, err := s.hubSpot.UpdateContact(ctx, contact.ID, lead)
 		if err != nil {
-			s.logger.Printf("failed to update HubSpot contact: contact_id=%s email=%s error=%v", contact.ID, lead.Email, err)
+			s.logger.Printf("failed to update HubSpot contact: contact_id=%s email=%s error=%v", contact.ID, lead.WorkEmail, err)
 			return models.LeadResponse{}, apperrors.ExternalService("failed to update contact in HubSpot", err)
 		}
 		contact = &updatedContact
@@ -73,10 +73,10 @@ func (s *LeadService) CreateLead(ctx context.Context, lead models.LeadRequest) (
 		return models.LeadResponse{}, apperrors.ExternalService("failed to associate contact with company in HubSpot", err)
 	}
 
-	s.logger.Printf("Lead created in HubSpot: contact_id=%s email=%s", contact.ID, lead.Email)
+	s.logger.Printf("Lead created in HubSpot: contact_id=%s email=%s", contact.ID, lead.WorkEmail)
 
 	if err := s.email.SendLeadNotification(ctx, lead, contact.ID, time.Now()); err != nil {
-		s.logger.Printf("failed to send internal notification email: contact_id=%s email=%s error=%v", contact.ID, lead.Email, err)
+		s.logger.Printf("failed to send internal notification email: contact_id=%s email=%s error=%v", contact.ID, lead.WorkEmail, err)
 	}
 
 	return models.LeadResponse{

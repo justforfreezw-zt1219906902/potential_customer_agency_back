@@ -97,12 +97,11 @@ type sendEmailRequest struct {
 
 func buildLeadNotificationBody(lead models.LeadRequest, hubSpotContactID string, submittedAt time.Time) string {
 	return fmt.Sprintf(
-		"Name: %s\nEmail: %s\nCompany: %s\nWebsite: %s\nPhone Number: %s\nHubSpot Contact ID: %s\nSubmission Time: %s",
-		lead.Name,
-		lead.Email,
+		"First Name: %s\nFamily Name: %s\nWork Email: %s\nCompany: %s\nHubSpot Contact ID: %s\nSubmission Time: %s",
+		lead.FirstName,
+		lead.FamilyName,
+		lead.WorkEmail,
 		lead.Company,
-		lead.Website,
-		lead.PhoneNumber,
 		hubSpotContactID,
 		submittedAt.UTC().Format(time.RFC3339),
 	)
