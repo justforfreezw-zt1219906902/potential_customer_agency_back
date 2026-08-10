@@ -130,6 +130,7 @@ Changelog files live under:
 db/changelog/db.changelog-master.yaml
 db/changelog/changes/001-create-leads-table.yaml
 db/changelog/changes/002-update-leads-for-short-form.yaml
+db/changelog/changes/003-create-abm-intelligence-schema.yaml
 ```
 
 ### Local Development

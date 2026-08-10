@@ -3,3 +3,5 @@ databaseChangeLog:
       file: db/changelog/changes/001-create-leads-table.yaml
   - include:
       file: db/changelog/changes/002-update-leads-for-short-form.yaml
+  - include:
+      file: db/changelog/changes/003-create-abm-intelligence-schema.yaml

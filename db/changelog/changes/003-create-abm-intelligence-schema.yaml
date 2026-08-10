@@ -1,0 +1,287 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-create-abm-intelligence-schema
+      author: codex
+      changes:
+        - sql:
+            splitStatements: true
+            stripComments: true
+            sql: |
+              CREATE TABLE company_profile (
+                  id UUID PRIMARY KEY,
+                  name VARCHAR(255) NOT NULL,
+                  tagline VARCHAR(500),
+                  website TEXT,
+                  hq VARCHAR(255),
+                  founded SMALLINT,
+                  description TEXT,
+                  products JSONB NOT NULL DEFAULT '[]'::jsonb,
+                  value_propositions JSONB NOT NULL DEFAULT '[]'::jsonb,
+                  target_verticals JSONB NOT NULL DEFAULT '[]'::jsonb,
+                  buyer_personas JSONB NOT NULL DEFAULT '[]'::jsonb,
+                  communication_dna JSONB NOT NULL DEFAULT '{}'::jsonb,
+                  signal_catalog JSONB NOT NULL DEFAULT '[]'::jsonb,
+                  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+              );
+
+              CREATE TABLE target_account (
+                  id UUID PRIMARY KEY,
+                  company_profile_id UUID NOT NULL,
+                  name VARCHAR(255) NOT NULL,
+                  domain VARCHAR(255) NOT NULL,
+                  web_url TEXT NOT NULL,
+                  impressum_url TEXT,
+                  industry VARCHAR(255),
+                  hq VARCHAR(255),
+                  employees INTEGER,
+                  revenue_m NUMERIC(18,2),
+                  revenue_currency CHAR(3),
+                  founded SMALLINT,
+                  description TEXT,
+                  notes TEXT,
+                  lifecycle VARCHAR(30) NOT NULL,
+                  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  CONSTRAINT fk_target_account_company_profile
+                      FOREIGN KEY (company_profile_id) REFERENCES company_profile(id),
+                  CONSTRAINT chk_target_account_employees
+                      CHECK (employees IS NULL OR employees >= 0),
+                  CONSTRAINT chk_target_account_lifecycle
+                      CHECK (lifecycle IN ('Lead', 'MQL', 'SQL', 'Opportunity', 'Deal', 'Customer'))
+              );
+
+              CREATE UNIQUE INDEX uq_target_account_company_profile_domain_lower
+                  ON target_account (company_profile_id, lower(domain));
+
+              CREATE INDEX idx_target_account_company_profile_id
+                  ON target_account (company_profile_id);
+
+              CREATE TABLE icp_profile (
+                  id UUID PRIMARY KEY,
+                  company_profile_id UUID NOT NULL,
+                  version INTEGER NOT NULL,
+                  config JSONB NOT NULL,
+                  is_active BOOLEAN NOT NULL,
+                  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  CONSTRAINT fk_icp_profile_company_profile
+                      FOREIGN KEY (company_profile_id) REFERENCES company_profile(id),
+                  CONSTRAINT chk_icp_profile_version
+                      CHECK (version > 0),
+                  CONSTRAINT uq_icp_profile_company_profile_version
+                      UNIQUE (company_profile_id, version)
+              );
+
+              CREATE INDEX idx_icp_profile_company_profile_id
+                  ON icp_profile (company_profile_id);
+
+              CREATE TABLE source_document (
+                  id UUID PRIMARY KEY,
+                  account_id UUID NOT NULL,
+                  source_name VARCHAR(500),
+                  source_type VARCHAR(255),
+                  url TEXT NOT NULL,
+                  content TEXT,
+                  content_hash VARCHAR(64),
+                  fetched_at TIMESTAMPTZ,
+                  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  CONSTRAINT fk_source_document_account
+                      FOREIGN KEY (account_id) REFERENCES target_account(id)
+              );
+
+              CREATE INDEX idx_source_document_account_id
+                  ON source_document (account_id);
+
+              CREATE INDEX idx_source_document_account_id_fetched_at
+                  ON source_document (account_id, fetched_at);
+
+              CREATE TABLE ai_run (
+                  id UUID PRIMARY KEY,
+                  account_id UUID,
+                  run_type VARCHAR(100) NOT NULL,
+                  model VARCHAR(100),
+                  run_status VARCHAR(50) NOT NULL,
+                  request_payload JSONB,
+                  response_payload JSONB,
+                  error_message TEXT,
+                  started_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  finished_at TIMESTAMPTZ,
+                  CONSTRAINT fk_ai_run_account
+                      FOREIGN KEY (account_id) REFERENCES target_account(id)
+              );
+
+              CREATE INDEX idx_ai_run_account_id
+                  ON ai_run (account_id);
+
+              CREATE INDEX idx_ai_run_account_id_started_at
+                  ON ai_run (account_id, started_at);
+
+              CREATE TABLE signal (
+                  id UUID PRIMARY KEY,
+                  signal_key VARCHAR(100),
+                  account_id UUID NOT NULL,
+                  ai_run_id UUID,
+                  source_document_id UUID,
+                  type VARCHAR(100) NOT NULL,
+                  title TEXT NOT NULL,
+                  body TEXT,
+                  strength VARCHAR(10) NOT NULL,
+                  relevance VARCHAR(10),
+                  signal_date DATE,
+                  signal_date_raw VARCHAR(50),
+                  freshness_label VARCHAR(255),
+                  evidence_status VARCHAR(30) NOT NULL,
+                  verified BOOLEAN NOT NULL DEFAULT false,
+                  last_verified_at TIMESTAMPTZ,
+                  is_active BOOLEAN NOT NULL DEFAULT true,
+                  closed_observed_at DATE,
+                  score_eligible BOOLEAN NOT NULL DEFAULT true,
+                  exclusion_reason TEXT,
+                  superseded_by_signal_id UUID,
+                  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  CONSTRAINT fk_signal_account
+                      FOREIGN KEY (account_id) REFERENCES target_account(id),
+                  CONSTRAINT fk_signal_ai_run
+                      FOREIGN KEY (ai_run_id) REFERENCES ai_run(id),
+                  CONSTRAINT fk_signal_source_document
+                      FOREIGN KEY (source_document_id) REFERENCES source_document(id),
+                  CONSTRAINT fk_signal_superseded_by_signal
+                      FOREIGN KEY (superseded_by_signal_id) REFERENCES signal(id),
+                  CONSTRAINT uq_signal_account_signal_key
+                      UNIQUE (account_id, signal_key),
+                  CONSTRAINT chk_signal_strength
+                      CHECK (strength IN ('high', 'medium', 'low')),
+                  CONSTRAINT chk_signal_relevance
+                      CHECK (relevance IS NULL OR relevance IN ('High', 'Medium', 'Low')),
+                  CONSTRAINT chk_signal_evidence_status
+                      CHECK (evidence_status IN ('SOURCE_BACKED', 'DERIVED', 'INSUFFICIENT_DATA'))
+              );
+
+              CREATE INDEX idx_signal_account_id
+                  ON signal (account_id);
+
+              CREATE INDEX idx_signal_account_id_is_active
+                  ON signal (account_id, is_active);
+
+              CREATE INDEX idx_signal_account_id_type
+                  ON signal (account_id, type);
+
+              CREATE INDEX idx_signal_account_id_score_eligible
+                  ON signal (account_id, score_eligible);
+
+              CREATE INDEX idx_signal_account_id_signal_date
+                  ON signal (account_id, signal_date);
+
+              CREATE INDEX idx_signal_ai_run_id
+                  ON signal (ai_run_id);
+
+              CREATE INDEX idx_signal_source_document_id
+                  ON signal (source_document_id);
+
+              CREATE INDEX idx_signal_superseded_by_signal_id
+                  ON signal (superseded_by_signal_id);
+
+              CREATE TABLE account_analysis (
+                  id UUID PRIMARY KEY,
+                  account_id UUID NOT NULL,
+                  icp_profile_id UUID,
+                  ai_run_id UUID,
+                  icp_score NUMERIC(5,2) NOT NULL,
+                  icp_fit VARCHAR(20) NOT NULL,
+                  icp_breakdown JSONB NOT NULL DEFAULT '{}'::jsonb,
+                  signal_score NUMERIC(5,2) NOT NULL,
+                  signal_score_breakdown JSONB,
+                  resonance_score NUMERIC(5,2) NOT NULL,
+                  tier VARCHAR(30) NOT NULL,
+                  why_this_account TEXT,
+                  why_now TEXT,
+                  next_best_action JSONB,
+                  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  CONSTRAINT fk_account_analysis_account
+                      FOREIGN KEY (account_id) REFERENCES target_account(id),
+                  CONSTRAINT fk_account_analysis_icp_profile
+                      FOREIGN KEY (icp_profile_id) REFERENCES icp_profile(id),
+                  CONSTRAINT fk_account_analysis_ai_run
+                      FOREIGN KEY (ai_run_id) REFERENCES ai_run(id),
+                  CONSTRAINT chk_account_analysis_icp_score
+                      CHECK (icp_score >= 0 AND icp_score <= 100),
+                  CONSTRAINT chk_account_analysis_icp_fit
+                      CHECK (icp_fit IN ('High', 'Medium', 'Low')),
+                  CONSTRAINT chk_account_analysis_signal_score
+                      CHECK (signal_score >= 0 AND signal_score <= 100),
+                  CONSTRAINT chk_account_analysis_resonance_score
+                      CHECK (resonance_score >= 0 AND resonance_score <= 100),
+                  CONSTRAINT chk_account_analysis_tier
+                      CHECK (tier IN ('Focus Accounts', 'Tier 1', 'Tier 2', 'Below ICP'))
+              );
+
+              CREATE INDEX idx_account_analysis_account_id_created_at
+                  ON account_analysis (account_id, created_at);
+
+              CREATE INDEX idx_account_analysis_icp_profile_id
+                  ON account_analysis (icp_profile_id);
+
+              CREATE INDEX idx_account_analysis_ai_run_id
+                  ON account_analysis (ai_run_id);
+
+              CREATE TABLE communication_dna (
+                  id UUID PRIMARY KEY,
+                  account_id UUID NOT NULL,
+                  ai_run_id UUID,
+                  tone JSONB NOT NULL DEFAULT '{}'::jsonb,
+                  vocabulary JSONB NOT NULL DEFAULT '{}'::jsonb,
+                  value_propositions JSONB NOT NULL DEFAULT '[]'::jsonb,
+                  problem_framing JSONB NOT NULL DEFAULT '{}'::jsonb,
+                  proof_style JSONB NOT NULL DEFAULT '{}'::jsonb,
+                  cta_patterns JSONB NOT NULL DEFAULT '{}'::jsonb,
+                  recurring_phrases JSONB NOT NULL DEFAULT '[]'::jsonb,
+                  do_rules JSONB NOT NULL DEFAULT '[]'::jsonb,
+                  dont_rules JSONB NOT NULL DEFAULT '[]'::jsonb,
+                  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  CONSTRAINT fk_communication_dna_account
+                      FOREIGN KEY (account_id) REFERENCES target_account(id),
+                  CONSTRAINT fk_communication_dna_ai_run
+                      FOREIGN KEY (ai_run_id) REFERENCES ai_run(id)
+              );
+
+              CREATE INDEX idx_communication_dna_account_id_created_at
+                  ON communication_dna (account_id, created_at);
+
+              CREATE INDEX idx_communication_dna_ai_run_id
+                  ON communication_dna (ai_run_id);
+
+              CREATE TABLE generated_asset (
+                  id UUID PRIMARY KEY,
+                  account_id UUID NOT NULL,
+                  ai_run_id UUID,
+                  anchor_signal_id UUID,
+                  persona VARCHAR(30),
+                  asset_type VARCHAR(30) NOT NULL,
+                  asset_subtype VARCHAR(30),
+                  content JSONB NOT NULL,
+                  traceability JSONB NOT NULL DEFAULT '[]'::jsonb,
+                  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  CONSTRAINT fk_generated_asset_account
+                      FOREIGN KEY (account_id) REFERENCES target_account(id),
+                  CONSTRAINT fk_generated_asset_ai_run
+                      FOREIGN KEY (ai_run_id) REFERENCES ai_run(id),
+                  CONSTRAINT fk_generated_asset_anchor_signal
+                      FOREIGN KEY (anchor_signal_id) REFERENCES signal(id),
+                  CONSTRAINT chk_generated_asset_persona
+                      CHECK (persona IS NULL OR persona IN ('marketing', 'sales', 'exec')),
+                  CONSTRAINT chk_generated_asset_asset_type
+                      CHECK (asset_type IN ('ad', 'landing', 'email', 'linkedin', 'talking')),
+                  CONSTRAINT chk_generated_asset_asset_subtype
+                      CHECK (asset_subtype IS NULL OR asset_subtype IN ('single', 'document', 'tla'))
+              );
+
+              CREATE INDEX idx_generated_asset_account_id_created_at
+                  ON generated_asset (account_id, created_at);
+
+              CREATE INDEX idx_generated_asset_ai_run_id
+                  ON generated_asset (ai_run_id);
+
+              CREATE INDEX idx_generated_asset_anchor_signal_id
+                  ON generated_asset (anchor_signal_id);
