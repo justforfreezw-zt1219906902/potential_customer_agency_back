@@ -313,6 +313,28 @@ The existing `GET /api/accounts` remains the compact list read model; its
 `analysis.nextBestAction` remains a string or `null`, while this detail endpoint
 returns the complete supported object.
 
+## Communication DNA
+
+Returns the latest persisted Communication DNA for a scoped Account. DNA is
+versioned and selected by `created_at DESC, id DESC`.
+
+```http
+GET /api/accounts/{accountId}/communication-dna
+```
+
+The response is always wrapped as `{ "data": ... }`. An existing account with
+no DNA returns `200` and `{ "data": null }`. A missing or out-of-scope account
+returns `404` with `{"error":"account not found"}`. Invalid UUIDs return `400`.
+Malformed JSONB shapes, invalid evidence statuses, or source integrity errors
+return the safe `500` response.
+
+DNA uses typed camelCase fields including `tone`, `vocabulary`,
+`valuePropositions`, `problemFraming`, `proofStyle`, `ctaPatterns`,
+`recurringPhrases`, `doRules`, and `dontRules`. Evidence statuses are exactly
+`SOURCE_BACKED`, `DERIVED`, or `INSUFFICIENT_DATA`. `buyingSignalSources` is
+derived from same-account Signal to Source Document links, deduplicated by URL;
+source and internal database IDs are not exposed.
+
 ## Account Signals
 
 Returns all persisted Signals for a scoped Account, including inactive Signals.

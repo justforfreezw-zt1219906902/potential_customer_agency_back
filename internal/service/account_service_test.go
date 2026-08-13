@@ -18,6 +18,9 @@ func (accountReaderStub) GetByID(context.Context, uuid.UUID, uuid.UUID) (*models
 func (accountReaderStub) ListSignals(context.Context, uuid.UUID, uuid.UUID) ([]models.Signal, bool, error) {
 	return nil, false, nil
 }
+func (accountReaderStub) GetCommunicationDNA(context.Context, uuid.UUID, uuid.UUID) (*models.CommunicationDNA, bool, bool, error) {
+	return nil, true, false, nil
+}
 
 func TestAccountServiceListSignalsBuildsSummary(t *testing.T) {
 	reader := signalReaderStub{items: []models.Signal{
@@ -46,6 +49,25 @@ func (s signalReaderStub) GetByID(context.Context, uuid.UUID, uuid.UUID) (*model
 }
 func (s signalReaderStub) ListSignals(context.Context, uuid.UUID, uuid.UUID) ([]models.Signal, bool, error) {
 	return s.items, true, nil
+}
+func (s signalReaderStub) GetCommunicationDNA(context.Context, uuid.UUID, uuid.UUID) (*models.CommunicationDNA, bool, bool, error) {
+	return nil, true, false, nil
+}
+
+func TestAccountServiceMissingDNAReturnsNull(t *testing.T) {
+	response, err := NewAccountService(accountReaderStub{}, uuid.New()).GetCommunicationDNA(context.Background(), uuid.New())
+	if err != nil || response.Data != nil {
+		t.Fatalf("response=%+v err=%v", response, err)
+	}
+}
+
+func TestDedupeSignalSourcesPreservesFirstURL(t *testing.T) {
+	a, b := "A", "B"
+	signals := []models.Signal{{Source: &models.SignalSource{URL: "https://a", Name: &a}}, {Source: &models.SignalSource{URL: "https://a"}}, {Source: &models.SignalSource{URL: "https://b", Name: &b}}, {Source: nil}}
+	result := dedupeSignalSources(signals)
+	if len(result) != 2 || result[0].URL != "https://a" || result[1].URL != "https://b" {
+		t.Fatalf("unexpected sources: %+v", result)
+	}
 }
 
 func TestAccountServiceGetReturnsNotFoundForScopedMissingAccount(t *testing.T) {

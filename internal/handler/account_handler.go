@@ -15,6 +15,21 @@ type AccountLister interface {
 	List(ctx context.Context) (models.AccountListResponse, error)
 	Get(ctx context.Context, accountID uuid.UUID) (models.AccountOverview, error)
 	ListSignals(ctx context.Context, accountID uuid.UUID) (models.AccountSignalsResponse, error)
+	GetCommunicationDNA(ctx context.Context, accountID uuid.UUID) (models.CommunicationDNAResponse, error)
+}
+
+func (h *AccountHandler) GetCommunicationDNA(c *gin.Context) {
+	accountID, err := uuid.Parse(c.Param("accountId"))
+	if err != nil {
+		_ = c.Error(errors.BadRequest("accountId must be a valid UUID", err))
+		return
+	}
+	response, err := h.service.GetCommunicationDNA(c.Request.Context(), accountID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	c.JSON(http.StatusOK, response)
 }
 
 func (h *AccountHandler) ListSignals(c *gin.Context) {

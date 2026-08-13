@@ -12,6 +12,45 @@ type AccountReader interface {
 	List(ctx context.Context, companyProfileID uuid.UUID) ([]models.Account, error)
 	GetByID(ctx context.Context, companyProfileID, accountID uuid.UUID) (*models.AccountOverview, bool, error)
 	ListSignals(ctx context.Context, companyProfileID, accountID uuid.UUID) ([]models.Signal, bool, error)
+	GetCommunicationDNA(ctx context.Context, companyProfileID, accountID uuid.UUID) (*models.CommunicationDNA, bool, bool, error)
+}
+
+func (s *AccountService) GetCommunicationDNA(ctx context.Context, accountID uuid.UUID) (models.CommunicationDNAResponse, error) {
+	dna, accountFound, dnaFound, err := s.repository.GetCommunicationDNA(ctx, s.companyID, accountID)
+	if err != nil {
+		return models.CommunicationDNAResponse{}, err
+	}
+	if !accountFound {
+		return models.CommunicationDNAResponse{}, apperrors.NotFound("account not found", nil)
+	}
+	if !dnaFound {
+		return models.CommunicationDNAResponse{Data: nil}, nil
+	}
+	sources, found, err := s.repository.ListSignals(ctx, s.companyID, accountID)
+	if err != nil {
+		return models.CommunicationDNAResponse{}, err
+	}
+	if !found {
+		return models.CommunicationDNAResponse{}, apperrors.NotFound("account not found", nil)
+	}
+	dna.BuyingSignalSources = dedupeSignalSources(sources)
+	return models.CommunicationDNAResponse{Data: dna}, nil
+}
+
+func dedupeSignalSources(signals []models.Signal) []models.SignalSource {
+	result := make([]models.SignalSource, 0)
+	seen := make(map[string]struct{})
+	for _, signal := range signals {
+		if signal.Source == nil {
+			continue
+		}
+		if _, ok := seen[signal.Source.URL]; ok {
+			continue
+		}
+		seen[signal.Source.URL] = struct{}{}
+		result = append(result, *signal.Source)
+	}
+	return result
 }
 
 func (s *AccountService) ListSignals(ctx context.Context, accountID uuid.UUID) (models.AccountSignalsResponse, error) {

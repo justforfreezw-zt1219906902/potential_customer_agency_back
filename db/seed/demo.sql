@@ -55,3 +55,26 @@ ON CONFLICT (id) DO UPDATE SET
   signal_date_raw = EXCLUDED.signal_date_raw, freshness_label = EXCLUDED.freshness_label,
   evidence_status = EXCLUDED.evidence_status, verified = EXCLUDED.verified,
   is_active = EXCLUDED.is_active, score_eligible = EXCLUDED.score_eligible;
+
+INSERT INTO communication_dna (id, account_id, tone, vocabulary, value_propositions, problem_framing, proof_style, cta_patterns, recurring_phrases, do_rules, dont_rules, created_at)
+VALUES
+('00000000-0000-0000-0000-000000004001', '00000000-0000-0000-0000-000000000101',
+ '{"primary":"Early technical","secondary":null,"description":"Older demo DNA","status":"DERIVED","sources":[]}',
+ '{"status":"DERIVED","terms":[]}', '[]', '{"description":null,"quote":null,"status":"INSUFFICIENT_DATA","sources":[]}',
+ '{"primary":null,"secondary":null,"description":null,"status":"INSUFFICIENT_DATA","sources":[]}',
+ '{"style":null,"description":null,"examples":[],"status":"INSUFFICIENT_DATA","sources":[]}', '[]', '[]', '[]', '2026-07-01T10:00:00Z'),
+('00000000-0000-0000-0000-000000004002', '00000000-0000-0000-0000-000000000101',
+ '{"primary":"Technical-authoritative","secondary":"Enterprise-confident","description":"Precise, engineering-led, scale-oriented.","status":"DERIVED","sources":[{"name":"Demo Homepage","type":"Homepage","url":"https://focus.example"}]}',
+ '{"status":"DERIVED","terms":[{"term":"enterprise infrastructure","context":"Core","frequency":"high","sources":[{"name":"Demo Homepage","type":"Homepage","url":"https://focus.example"}]}]}',
+ '[{"quote":"Built for complex enterprise environments.","status":"SOURCE_BACKED","sources":[{"name":"Demo Homepage","type":"Homepage","url":"https://focus.example"}]}]',
+ '{"description":"Complexity is framed as an integration challenge.","quote":"Operate complex environments with confidence.","status":"DERIVED","sources":[{"name":"Demo Homepage","type":"Homepage","url":"https://focus.example"}]}',
+ '{"primary":"Benchmarks + enterprise scale","secondary":"Reference customers","description":"Claims are supported with scale and proof points.","status":"DERIVED","sources":[{"name":"Demo Homepage","type":"Homepage","url":"https://focus.example"}]}',
+ '{"style":"Consultative","description":"Enterprise-led with direct commercial CTAs.","examples":["Talk to sales","Start a trial"],"status":"DERIVED","sources":[{"name":"Demo Homepage","type":"Homepage","url":"https://focus.example"}]}',
+ '[{"quote":"Built for the enterprise","description":"Repeated enterprise positioning language.","status":"DERIVED","sources":[{"name":"Demo Homepage","type":"Homepage","url":"https://focus.example"}]}]',
+ '["Match technical precision","Lead with scale and reliability"]', '["Avoid fluffy claims","Do not undersell security"]', '2026-08-10T10:00:00Z')
+ON CONFLICT (id) DO UPDATE SET
+  account_id=EXCLUDED.account_id, tone=EXCLUDED.tone, vocabulary=EXCLUDED.vocabulary,
+  value_propositions=EXCLUDED.value_propositions, problem_framing=EXCLUDED.problem_framing,
+  proof_style=EXCLUDED.proof_style, cta_patterns=EXCLUDED.cta_patterns,
+  recurring_phrases=EXCLUDED.recurring_phrases, do_rules=EXCLUDED.do_rules,
+  dont_rules=EXCLUDED.dont_rules, created_at=EXCLUDED.created_at;

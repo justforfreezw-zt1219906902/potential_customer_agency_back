@@ -150,6 +150,161 @@ ORDER BY s.signal_date DESC NULLS LAST, s.created_at DESC NULLS LAST, s.id DESC`
 	return items, accountFound, nil
 }
 
+func (r *AccountRepository) GetCommunicationDNA(ctx context.Context, companyProfileID, accountID uuid.UUID) (*models.CommunicationDNA, bool, bool, error) {
+	const query = `
+SELECT a.id, d.id, d.tone, d.vocabulary, d.value_propositions, d.problem_framing,
+       d.proof_style, d.cta_patterns, d.recurring_phrases, d.do_rules, d.dont_rules, d.created_at
+FROM target_account a
+LEFT JOIN LATERAL (
+  SELECT id, tone, vocabulary, value_propositions, problem_framing, proof_style,
+         cta_patterns, recurring_phrases, do_rules, dont_rules, created_at
+  FROM communication_dna WHERE account_id = a.id
+  ORDER BY created_at DESC, id DESC LIMIT 1
+) d ON TRUE
+WHERE a.id = $1 AND a.company_profile_id = $2`
+	var marker, dnaID *uuid.UUID
+	var tone, vocabulary, propositions, problem, proof, cta, phrases, doRules, dontRules []byte
+	var createdAt *time.Time
+	err := r.pool.QueryRow(ctx, query, accountID, companyProfileID).Scan(&marker, &dnaID, &tone, &vocabulary, &propositions, &problem, &proof, &cta, &phrases, &doRules, &dontRules, &createdAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, false, false, nil
+		}
+		return nil, false, false, fmt.Errorf("query communication DNA: %w", err)
+	}
+	if dnaID == nil {
+		return nil, true, false, nil
+	}
+	for name, value := range map[string][]byte{"tone": tone, "vocabulary": vocabulary, "value_propositions": propositions, "problem_framing": problem, "proof_style": proof, "cta_patterns": cta, "recurring_phrases": phrases, "do_rules": doRules, "dont_rules": dontRules} {
+		if value == nil {
+			return nil, false, false, fmt.Errorf("communication DNA %s is null", name)
+		}
+	}
+	if createdAt == nil {
+		return nil, false, false, fmt.Errorf("communication DNA created_at is null")
+	}
+	dna, err := parseCommunicationDNA(*dnaID, accountID, tone, vocabulary, propositions, problem, proof, cta, phrases, doRules, dontRules, *createdAt)
+	if err != nil {
+		return nil, false, false, err
+	}
+	return dna, true, true, nil
+}
+
+func parseCommunicationDNA(id, accountID uuid.UUID, tone, vocabulary, propositions, problem, proof, cta, phrases, doRules, dontRules []byte, createdAt time.Time) (*models.CommunicationDNA, error) {
+	var result models.CommunicationDNA
+	result.ID, result.AccountID, result.CreatedAt = id, accountID, createdAt.UTC().Format(time.RFC3339)
+	decode := func(name string, raw []byte, target any) error {
+		if err := json.Unmarshal(raw, target); err != nil {
+			return fmt.Errorf("invalid communication DNA %s: %w", name, err)
+		}
+		return nil
+	}
+	if err := decode("tone", tone, &result.Tone); err != nil {
+		return nil, err
+	}
+	if err := validateStyle(result.Tone, "tone"); err != nil {
+		return nil, err
+	}
+	if err := decode("vocabulary", vocabulary, &result.Vocabulary); err != nil {
+		return nil, err
+	}
+	if err := validateStatus(result.Vocabulary.Status, "vocabulary.status"); err != nil {
+		return nil, err
+	}
+	for i := range result.Vocabulary.Terms {
+		if result.Vocabulary.Terms[i].Term == "" {
+			return nil, fmt.Errorf("invalid vocabulary term")
+		}
+		if err := validateSources(result.Vocabulary.Terms[i].Sources); err != nil {
+			return nil, err
+		}
+	}
+	if err := decode("value_propositions", propositions, &result.ValuePropositions); err != nil {
+		return nil, err
+	}
+	for i := range result.ValuePropositions {
+		if result.ValuePropositions[i].Quote == "" {
+			return nil, fmt.Errorf("invalid value proposition")
+		}
+		if err := validateStatus(result.ValuePropositions[i].Status, "value_proposition.status"); err != nil {
+			return nil, err
+		}
+		if err := validateSources(result.ValuePropositions[i].Sources); err != nil {
+			return nil, err
+		}
+	}
+	if err := decode("problem_framing", problem, &result.ProblemFraming); err != nil {
+		return nil, err
+	}
+	if err := validateStatus(result.ProblemFraming.Status, "problem_framing.status"); err != nil {
+		return nil, err
+	}
+	if err := validateSources(result.ProblemFraming.Sources); err != nil {
+		return nil, err
+	}
+	if err := decode("proof_style", proof, &result.ProofStyle); err != nil {
+		return nil, err
+	}
+	if err := validateStyle(result.ProofStyle, "proof_style"); err != nil {
+		return nil, err
+	}
+	if err := decode("cta_patterns", cta, &result.CTAPatterns); err != nil {
+		return nil, err
+	}
+	if err := validateStatus(result.CTAPatterns.Status, "cta_patterns.status"); err != nil {
+		return nil, err
+	}
+	if err := validateSources(result.CTAPatterns.Sources); err != nil {
+		return nil, err
+	}
+	if err := decode("recurring_phrases", phrases, &result.RecurringPhrases); err != nil {
+		return nil, err
+	}
+	for i := range result.RecurringPhrases {
+		if result.RecurringPhrases[i].Quote == "" {
+			return nil, fmt.Errorf("invalid recurring phrase")
+		}
+		if err := validateStatus(result.RecurringPhrases[i].Status, "recurring_phrase.status"); err != nil {
+			return nil, err
+		}
+		if err := validateSources(result.RecurringPhrases[i].Sources); err != nil {
+			return nil, err
+		}
+	}
+	if err := decodeStringArray("do_rules", doRules, &result.DoRules); err != nil {
+		return nil, err
+	}
+	if err := decodeStringArray("dont_rules", dontRules, &result.DontRules); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func validateStatus(status, field string) error {
+	if status != "SOURCE_BACKED" && status != "DERIVED" && status != "INSUFFICIENT_DATA" {
+		return fmt.Errorf("invalid %s status", field)
+	}
+	return nil
+}
+func validateSources(sources []models.SignalSource) error {
+	if sources == nil {
+		return fmt.Errorf("DNA sources must be an array")
+	}
+	return nil
+}
+func validateStyle(style models.DNAStyle, field string) error {
+	if err := validateStatus(style.Status, field+".status"); err != nil {
+		return err
+	}
+	return validateSources(style.Sources)
+}
+func decodeStringArray(name string, raw []byte, out *[]string) error {
+	if err := json.Unmarshal(raw, out); err != nil || *out == nil {
+		return fmt.Errorf("invalid communication DNA %s", name)
+	}
+	return nil
+}
+
 func NewAccountRepository(pool *pgxpool.Pool) *AccountRepository {
 	return &AccountRepository{pool: pool}
 }

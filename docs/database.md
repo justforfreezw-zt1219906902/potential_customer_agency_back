@@ -55,6 +55,10 @@ The explicit Demo Seed also includes deterministic `source_document` and
 Signal rows so Account Signal source traceability and empty/inactive Signal
 states can be verified. The physical schema is unchanged.
 
+The seed also contains two versioned Communication DNA fixtures for the Focus
+Account. The newer deterministic row is selected by the API; the seed remains
+separate from Liquibase.
+
 ## Railway workflow
 
 Railway runs `scripts/railway-start.sh`. That script runs Liquibase first and

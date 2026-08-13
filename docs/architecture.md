@@ -47,6 +47,7 @@ AccountRepository and supports both list and detail reads:
 GET /api/accounts
 GET /api/accounts/{accountId}
 GET /api/accounts/{accountId}/signals
+GET /api/accounts/{accountId}/communication-dna
    ↓
 Account handler → Account service → Account repository → PostgreSQL
 ```
@@ -54,6 +55,10 @@ Account handler → Account service → Account repository → PostgreSQL
 The Signals read model composes optional `source_document` traceability data
 through the Account repository. There is no generic Signal or Source Document
 CRUD API.
+
+Communication DNA reads the latest `communication_dna` row and composes
+Buying Signal source attribution from the existing Signal/Source Document data.
+No AI generation service is implemented by this read path.
 
 ## Future / Not Yet Implemented
 

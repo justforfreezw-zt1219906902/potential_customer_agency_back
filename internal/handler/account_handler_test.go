@@ -15,6 +15,7 @@ import (
 type accountHandlerTestService struct {
 	getCalls         int
 	listSignalsCalls int
+	dnaCalls         int
 }
 
 func (s *accountHandlerTestService) List(context.Context) (models.AccountListResponse, error) {
@@ -27,6 +28,10 @@ func (s *accountHandlerTestService) Get(context.Context, uuid.UUID) (models.Acco
 func (s *accountHandlerTestService) ListSignals(context.Context, uuid.UUID) (models.AccountSignalsResponse, error) {
 	s.listSignalsCalls++
 	return models.AccountSignalsResponse{}, nil
+}
+func (s *accountHandlerTestService) GetCommunicationDNA(context.Context, uuid.UUID) (models.CommunicationDNAResponse, error) {
+	s.dnaCalls++
+	return models.CommunicationDNAResponse{}, nil
 }
 
 func TestGetAccountRejectsMalformedUUIDBeforeServiceCall(t *testing.T) {
@@ -62,5 +67,18 @@ func TestListSignalsRejectsMalformedUUIDBeforeServiceCall(t *testing.T) {
 	}
 	if service.listSignalsCalls != 0 {
 		t.Fatal("service should not be called for malformed UUID")
+	}
+}
+
+func TestCommunicationDNARejectsMalformedUUIDBeforeServiceCall(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service := &accountHandlerTestService{}
+	router := gin.New()
+	router.Use(middleware.ErrorHandler(log.Default()))
+	router.GET("/api/accounts/:accountId/communication-dna", NewAccountHandler(service, log.Default()).GetCommunicationDNA)
+	recording := httptest.NewRecorder()
+	router.ServeHTTP(recording, httptest.NewRequest("GET", "/api/accounts/not-a-uuid/communication-dna", nil))
+	if recording.Code != 400 || service.dnaCalls != 0 {
+		t.Fatalf("status=%d dnaCalls=%d", recording.Code, service.dnaCalls)
 	}
 }
