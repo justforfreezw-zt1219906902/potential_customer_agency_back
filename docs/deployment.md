@@ -7,6 +7,7 @@ Copy `.env.example` to `.env`, set credentials, then run:
 ```bash
 ./scripts/db-local-up.sh
 ./scripts/liquibase-migrate.sh
+./scripts/seed-demo-data.sh
 go run ./cmd/api
 ```
 
@@ -54,6 +55,10 @@ the local Docker PostgreSQL container.
 | `POSTGRES_PASSWORD` / `PGPASSWORD` | Database password. |
 | `POSTGRES_PORT` | Local Docker host port. |
 | `POSTGRES_SSLMODE` | Local/remote PostgreSQL SSL mode when included in the address. |
+| `DEMO_COMPANY_PROFILE_ID` | Required server-side UUID scope for the demo account list. |
 
 Use placeholders only in `.env.example`; never commit actual tokens or
 passwords.
+
+Railway does not run the demo seed. Set `DEMO_COMPANY_PROFILE_ID` only when
+the corresponding company profile exists in the target database.

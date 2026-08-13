@@ -41,7 +41,13 @@ operations. Integration packages should own external API details. Liquibase is
 the source of truth for database schema evolution.
 
 The current service does not contain a PostgreSQL repository and does not write
-lead submissions to PostgreSQL.
+lead submissions to PostgreSQL. The ABM read path is separate:
+
+```text
+GET /api/accounts
+   ↓
+Account handler → Account service → Account repository → PostgreSQL
+```
 
 ## Future / Not Yet Implemented
 

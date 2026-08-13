@@ -7,6 +7,7 @@ evolution. Production schema changes must be represented by version-controlled
 changesets; the Go application must not create or alter tables at runtime.
 
 The current Go request flow does not persist leads through a repository. The
+ABM read path uses `pgxpool` and an explicit SQL account repository. The
 Liquibase schema contains the existing `leads` history and the ABM Intelligence
 MVP entities.
 
@@ -37,12 +38,18 @@ scripts/db-local-up.sh
         ↓
 scripts/liquibase-migrate.sh
         ↓
+scripts/seed-demo-data.sh (explicit local/demo step)
+        ↓
 go run ./cmd/api
 ```
 
 `db-local-up.sh` starts the Docker Compose PostgreSQL service. The migration
 script reads the database address and credentials from the environment and
 runs the master changelog.
+
+`seed-demo-data.sh` is separate from Liquibase, idempotent, and intended only
+for explicit local/demo data. It is never run automatically by application or
+Railway startup.
 
 ## Railway workflow
 

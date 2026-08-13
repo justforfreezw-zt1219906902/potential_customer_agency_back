@@ -209,3 +209,47 @@ Allowed origins are configured with:
 ```text
 CORS_ALLOWED_ORIGINS
 ```
+
+## List Accounts
+
+Returns the current demo company's target-account read model for Account
+Discovery. The company scope is server-side; clients cannot provide it.
+
+```http
+GET /api/accounts
+```
+
+The response is an object with an `items` array. There is no pagination or
+server-side search/filtering in the current MVP.
+
+```json
+{
+  "items": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "Oracle",
+      "industry": "Technology",
+      "hq": "Austin, TX",
+      "lifecycle": "SQL",
+      "analysis": {
+        "icpScore": 86.5,
+        "icpFit": "High",
+        "signalScore": 91,
+        "resonanceScore": 89.2,
+        "tier": "Focus Accounts",
+        "nextBestAction": "Prepare signal-led outreach"
+      },
+      "activeSignalCount": 14
+    }
+  ]
+}
+```
+
+`industry`, `hq`, and `analysis` may be `null`. `activeSignalCount` is derived
+from active signals and is `0` when none exist. The default order is Focus
+Accounts, Tier 1, Tier 2, Below ICP, then unanalyzed accounts; within a tier,
+resonance score descends and name is alphabetical.
+
+When `analysis` exists, only the `action` value from `next_best_action` is
+returned as `nextBestAction`. Malformed persisted analysis data produces the
+normal safe HTTP 500 response.

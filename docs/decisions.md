@@ -46,3 +46,25 @@ no queue or retry worker in the current scope.
 
 Impact: A successful response does not guarantee that the notification email
 was delivered; logs are the current diagnostic path.
+
+## DEC-005 — Explicit SQL through pgxpool
+
+Status: Accepted
+
+Decision: Runtime PostgreSQL access uses `pgxpool` and explicit SQL in focused
+repositories.
+
+Reason: The current read slice needs predictable queries and does not justify
+an ORM, query generator, or generic persistence abstraction.
+
+Impact: Repository queries own SQL and scanning; services do not access SQL.
+
+## DEC-006 — Demo data is separate from migrations
+
+Status: Accepted
+
+Decision: Demonstration rows are created only by the explicit seed script.
+
+Reason: Schema history and optional development data have different lifecycles.
+
+Impact: Liquibase and Railway startup never seed demo records automatically.
