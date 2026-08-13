@@ -390,3 +390,25 @@ An existing account with no Signals returns HTTP 200 with `items: []`,
 returns HTTP 400. Missing or out-of-scope accounts return HTTP 404 with
 `{"error":"account not found"}`. Database or cross-account source integrity
 errors return the normal safe HTTP 500 response.
+
+## Frontend Consumer Status
+
+`API-CONTRACT-R2` is the current Account Intelligence read contract. The
+backend owns its implementation and contract behavior; frontend Phase 5 owns
+frontend acceptance and governance.
+
+Account Discovery, Account Overview, and Communication DNA have been
+integrated and human-verified against `API-CONTRACT-R2`. This confirms that the
+current backend read APIs have a working frontend consumer. No additional
+backend Phase 5 implementation was required.
+
+The list and detail read models intentionally differ:
+
+- `GET /api/accounts` includes `activeSignalCount`.
+- `GET /api/accounts/{accountId}` does not include `activeSignalCount`.
+- An existing Account without analysis returns HTTP 200 with `analysis: null`.
+- An existing Account without Communication DNA returns HTTP 200 with
+  `{ "data": null }`.
+
+Future frontend/backend work must not infer new API behavior from UI fixtures.
+Contract changes must be explicitly agreed and documented.

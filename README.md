@@ -12,6 +12,10 @@ B2B SaaS application.
 - HubSpot company lookup/creation and contact creation/update.
 - Primary Company association in HubSpot.
 - Best-effort internal email notification through Resend.
+- PostgreSQL-backed Account Intelligence read APIs.
+- Account Discovery list, scoped Account Overview, and scoped Account Signals.
+- Latest persisted Communication DNA with traceable buying-signal sources.
+- Server-side demo-company scoping and an explicit demo seed workflow.
 - PostgreSQL schema migrations through Liquibase.
 - Local Docker PostgreSQL and Railway startup support.
 
