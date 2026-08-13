@@ -87,45 +87,50 @@ type CommunicationDNA struct {
 	CreatedAt           string          `json:"createdAt"`
 }
 type DNAStyle struct {
-	Primary     *string        `json:"primary"`
-	Secondary   *string        `json:"secondary"`
-	Description *string        `json:"description"`
-	Status      string         `json:"status"`
-	Sources     []SignalSource `json:"sources"`
+	Primary     *string     `json:"primary"`
+	Secondary   *string     `json:"secondary"`
+	Description *string     `json:"description"`
+	Status      string      `json:"status"`
+	Sources     []DNASource `json:"sources"`
+}
+type DNASource struct {
+	Name *string `json:"name"`
+	Type *string `json:"type"`
+	URL  *string `json:"url"`
 }
 type DNAVocabulary struct {
 	Status string    `json:"status"`
 	Terms  []DNATerm `json:"terms"`
 }
 type DNATerm struct {
-	Term      string         `json:"term"`
-	Context   *string        `json:"context"`
-	Frequency *string        `json:"frequency"`
-	Sources   []SignalSource `json:"sources"`
+	Term      string      `json:"term"`
+	Context   *string     `json:"context"`
+	Frequency *string     `json:"frequency"`
+	Sources   []DNASource `json:"sources"`
 }
 type DNAEvidence struct {
-	Quote   string         `json:"quote"`
-	Status  string         `json:"status"`
-	Sources []SignalSource `json:"sources"`
+	Quote   string      `json:"quote"`
+	Status  string      `json:"status"`
+	Sources []DNASource `json:"sources"`
 }
 type DNAProblem struct {
-	Description *string        `json:"description"`
-	Quote       *string        `json:"quote"`
-	Status      string         `json:"status"`
-	Sources     []SignalSource `json:"sources"`
+	Description *string     `json:"description"`
+	Quote       *string     `json:"quote"`
+	Status      string      `json:"status"`
+	Sources     []DNASource `json:"sources"`
 }
 type DNACallToAction struct {
-	Style       *string        `json:"style"`
-	Description *string        `json:"description"`
-	Examples    []string       `json:"examples"`
-	Status      string         `json:"status"`
-	Sources     []SignalSource `json:"sources"`
+	Style       *string     `json:"style"`
+	Description *string     `json:"description"`
+	Examples    []string    `json:"examples"`
+	Status      string      `json:"status"`
+	Sources     []DNASource `json:"sources"`
 }
 type DNAPhrase struct {
-	Quote       string         `json:"quote"`
-	Description *string        `json:"description"`
-	Status      string         `json:"status"`
-	Sources     []SignalSource `json:"sources"`
+	Quote       string      `json:"quote"`
+	Description *string     `json:"description"`
+	Status      string      `json:"status"`
+	Sources     []DNASource `json:"sources"`
 }
 
 type SignalSummary struct {

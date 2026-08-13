@@ -211,6 +211,9 @@ func parseCommunicationDNA(id, accountID uuid.UUID, tone, vocabulary, propositio
 	if err := validateStatus(result.Vocabulary.Status, "vocabulary.status"); err != nil {
 		return nil, err
 	}
+	if result.Vocabulary.Terms == nil {
+		return nil, fmt.Errorf("vocabulary.terms must be an array")
+	}
 	for i := range result.Vocabulary.Terms {
 		if result.Vocabulary.Terms[i].Term == "" {
 			return nil, fmt.Errorf("invalid vocabulary term")
@@ -221,6 +224,9 @@ func parseCommunicationDNA(id, accountID uuid.UUID, tone, vocabulary, propositio
 	}
 	if err := decode("value_propositions", propositions, &result.ValuePropositions); err != nil {
 		return nil, err
+	}
+	if result.ValuePropositions == nil {
+		return nil, fmt.Errorf("value_propositions must be an array")
 	}
 	for i := range result.ValuePropositions {
 		if result.ValuePropositions[i].Quote == "" {
@@ -254,11 +260,17 @@ func parseCommunicationDNA(id, accountID uuid.UUID, tone, vocabulary, propositio
 	if err := validateStatus(result.CTAPatterns.Status, "cta_patterns.status"); err != nil {
 		return nil, err
 	}
+	if result.CTAPatterns.Examples == nil {
+		return nil, fmt.Errorf("cta_patterns.examples must be an array")
+	}
 	if err := validateSources(result.CTAPatterns.Sources); err != nil {
 		return nil, err
 	}
 	if err := decode("recurring_phrases", phrases, &result.RecurringPhrases); err != nil {
 		return nil, err
+	}
+	if result.RecurringPhrases == nil {
+		return nil, fmt.Errorf("recurring_phrases must be an array")
 	}
 	for i := range result.RecurringPhrases {
 		if result.RecurringPhrases[i].Quote == "" {
@@ -286,7 +298,7 @@ func validateStatus(status, field string) error {
 	}
 	return nil
 }
-func validateSources(sources []models.SignalSource) error {
+func validateSources(sources []models.DNASource) error {
 	if sources == nil {
 		return fmt.Errorf("DNA sources must be an array")
 	}
