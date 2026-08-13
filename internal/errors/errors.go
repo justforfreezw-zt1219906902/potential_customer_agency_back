@@ -51,6 +51,10 @@ func Internal(message string, err error) *AppError {
 	}
 }
 
+func NotFound(message string, err error) *AppError {
+	return &AppError{Status: http.StatusNotFound, Code: "not_found", Message: message, Err: err}
+}
+
 func AsAppError(err error) (*AppError, bool) {
 	var appErr *AppError
 	if stderrors.As(err, &appErr) {

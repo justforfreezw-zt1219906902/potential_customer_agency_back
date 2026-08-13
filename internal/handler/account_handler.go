@@ -6,12 +6,28 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/justforfreezw-zt1219906902/potential_customer_agency_back/internal/errors"
 	"github.com/justforfreezw-zt1219906902/potential_customer_agency_back/internal/models"
 )
 
 type AccountLister interface {
 	List(ctx context.Context) (models.AccountListResponse, error)
+	Get(ctx context.Context, accountID uuid.UUID) (models.AccountOverview, error)
+}
+
+func (h *AccountHandler) GetAccount(c *gin.Context) {
+	accountID, err := uuid.Parse(c.Param("accountId"))
+	if err != nil {
+		_ = c.Error(errors.BadRequest("accountId must be a valid UUID", err))
+		return
+	}
+	response, err := h.service.Get(c.Request.Context(), accountID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	c.JSON(http.StatusOK, response)
 }
 
 type AccountHandler struct {

@@ -40,11 +40,11 @@ Handlers should deal with HTTP concerns. Services should coordinate business
 operations. Integration packages should own external API details. Liquibase is
 the source of truth for database schema evolution.
 
-The current service does not contain a PostgreSQL repository and does not write
-lead submissions to PostgreSQL. The ABM read path is separate:
+Lead submissions are not persisted to PostgreSQL. The ABM read path uses an
+AccountRepository and supports both list and detail reads:
 
 ```text
-GET /api/accounts
+GET /api/accounts and GET /api/accounts/{accountId}
    ↓
 Account handler → Account service → Account repository → PostgreSQL
 ```

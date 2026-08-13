@@ -253,3 +253,62 @@ resonance score descends and name is alphabetical.
 When `analysis` exists, only the `action` value from `next_best_action` is
 returned as `nextBestAction`. Malformed persisted analysis data produces the
 normal safe HTTP 500 response.
+
+## Account Overview
+
+Returns one scoped target-account overview, including stable account facts and
+the latest account analysis. `accountId` must be a PostgreSQL UUID. The account
+must belong to the server-side demo company scope.
+
+```http
+GET /api/accounts/{accountId}
+```
+
+Example response:
+
+```json
+{
+  "id": "00000000-0000-0000-0000-000000000101",
+  "name": "Focus Account",
+  "domain": "focus.example",
+  "webUrl": "https://focus.example",
+  "industry": "Technology",
+  "hq": "Austin, TX",
+  "employees": 1200,
+  "revenue": { "amountM": 450.5, "currency": "USD" },
+  "founded": 2012,
+  "description": "Synthetic demo account for overview verification.",
+  "lifecycle": "SQL",
+  "analysis": {
+    "icpScore": 86.5,
+    "icpFit": "High",
+    "signalScore": 91,
+    "resonanceScore": 89.2,
+    "tier": "Focus Accounts",
+    "whyThisAccount": "Strong synthetic enterprise fit.",
+    "whyNow": "Multiple current demo buying signals.",
+    "nextBestAction": {
+      "action": "Prepare signal-led outreach",
+      "rationale": "Current demo evidence supports immediate outreach.",
+      "timeWindow": "Now",
+      "priority": "Critical"
+    }
+  }
+}
+```
+
+Nullable account facts remain `null`, including `industry`, `hq`, `employees`,
+`revenue`, `founded`, and `description`. An account without analysis still
+returns HTTP 200 with `analysis: null`. Revenue uses the stored `revenue_m`
+value as `amountM` without display conversion. The latest analysis is selected
+by `created_at DESC, id DESC`.
+
+Errors:
+
+- Invalid UUID: `400 Bad Request`, `{"error":"accountId must be a valid UUID"}`
+- Missing or out-of-scope account: `404 Not Found`, `{"error":"account not found"}`
+- Database or malformed persisted analysis data: safe `500 Internal Server Error`
+
+The existing `GET /api/accounts` remains the compact list read model; its
+`analysis.nextBestAction` remains a string or `null`, while this detail endpoint
+returns the complete supported object.
