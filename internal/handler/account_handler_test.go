@@ -12,7 +12,10 @@ import (
 	"github.com/justforfreezw-zt1219906902/potential_customer_agency_back/internal/models"
 )
 
-type accountHandlerTestService struct{ getCalls int }
+type accountHandlerTestService struct {
+	getCalls         int
+	listSignalsCalls int
+}
 
 func (s *accountHandlerTestService) List(context.Context) (models.AccountListResponse, error) {
 	return models.AccountListResponse{}, nil
@@ -22,6 +25,7 @@ func (s *accountHandlerTestService) Get(context.Context, uuid.UUID) (models.Acco
 	return models.AccountOverview{}, nil
 }
 func (s *accountHandlerTestService) ListSignals(context.Context, uuid.UUID) (models.AccountSignalsResponse, error) {
+	s.listSignalsCalls++
 	return models.AccountSignalsResponse{}, nil
 }
 
@@ -56,7 +60,7 @@ func TestListSignalsRejectsMalformedUUIDBeforeServiceCall(t *testing.T) {
 	if recording.Code != 400 {
 		t.Fatalf("handler returned status %d, want 400", recording.Code)
 	}
-	if service.getCalls != 0 {
+	if service.listSignalsCalls != 0 {
 		t.Fatal("service should not be called for malformed UUID")
 	}
 }

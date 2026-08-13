@@ -105,14 +105,16 @@ ORDER BY s.signal_date DESC NULLS LAST, s.created_at DESC NULLS LAST, s.id DESC`
 		var signalID *uuid.UUID
 		var signal models.Signal
 		var body, relevance, signalDateRaw, freshnessLabel *string
+		var signalType, signalTitle, strength, evidenceStatus *string
+		var verified, isActive, scoreEligible *bool
 		var signalDate *time.Time
 		var sourceDocumentID *uuid.UUID
 		var sourceName, sourceType *string
 		var sourceURL *string
 
-		if err := rows.Scan(&accountIDMarker, &signalID, &signal.Type, &signal.Title, &body, &signal.Strength, &relevance,
-			&signalDate, &signalDateRaw, &freshnessLabel, &signal.EvidenceStatus, &signal.Verified,
-			&signal.IsActive, &signal.ScoreEligible, &sourceDocumentID, &sourceName, &sourceType, &sourceURL); err != nil {
+		if err := rows.Scan(&accountIDMarker, &signalID, &signalType, &signalTitle, &body, &strength, &relevance,
+			&signalDate, &signalDateRaw, &freshnessLabel, &evidenceStatus, &verified,
+			&isActive, &scoreEligible, &sourceDocumentID, &sourceName, &sourceType, &sourceURL); err != nil {
 			return nil, false, fmt.Errorf("scan account signal: %w", err)
 		}
 		_ = accountIDMarker
@@ -120,7 +122,14 @@ ORDER BY s.signal_date DESC NULLS LAST, s.created_at DESC NULLS LAST, s.id DESC`
 		if signalID == nil {
 			continue
 		}
+		if signalType == nil || signalTitle == nil || strength == nil || evidenceStatus == nil ||
+			verified == nil || isActive == nil || scoreEligible == nil {
+			return nil, false, fmt.Errorf("signal %s has missing required persisted fields", *signalID)
+		}
 		signal.ID = *signalID
+		signal.Type, signal.Title, signal.Strength = *signalType, *signalTitle, *strength
+		signal.EvidenceStatus = *evidenceStatus
+		signal.Verified, signal.IsActive, signal.ScoreEligible = *verified, *isActive, *scoreEligible
 		signal.Body, signal.Relevance = body, relevance
 		signal.SignalDateRaw, signal.FreshnessLabel = signalDateRaw, freshnessLabel
 		if signalDate != nil {
