@@ -44,10 +44,16 @@ Lead submissions are not persisted to PostgreSQL. The ABM read path uses an
 AccountRepository and supports both list and detail reads:
 
 ```text
-GET /api/accounts and GET /api/accounts/{accountId}
+GET /api/accounts
+GET /api/accounts/{accountId}
+GET /api/accounts/{accountId}/signals
    ↓
 Account handler → Account service → Account repository → PostgreSQL
 ```
+
+The Signals read model composes optional `source_document` traceability data
+through the Account repository. There is no generic Signal or Source Document
+CRUD API.
 
 ## Future / Not Yet Implemented
 

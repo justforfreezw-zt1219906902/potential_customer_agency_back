@@ -51,6 +51,10 @@ runs the master changelog.
 for explicit local/demo data. It is never run automatically by application or
 Railway startup.
 
+The explicit Demo Seed also includes deterministic `source_document` and
+Signal rows so Account Signal source traceability and empty/inactive Signal
+states can be verified. The physical schema is unchanged.
+
 ## Railway workflow
 
 Railway runs `scripts/railway-start.sh`. That script runs Liquibase first and

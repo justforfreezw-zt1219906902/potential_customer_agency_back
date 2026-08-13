@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -72,6 +73,72 @@ WHERE a.id = $1 AND a.company_profile_id = $2`
 		account.Analysis = analysis
 	}
 	return &account, true, nil
+}
+
+func (r *AccountRepository) ListSignals(ctx context.Context, companyProfileID, accountID uuid.UUID) ([]models.Signal, bool, error) {
+	const query = `
+SELECT
+    a.id,
+    s.id, s.type, s.title, s.body, s.strength, s.relevance,
+    s.signal_date, s.signal_date_raw, s.freshness_label,
+    s.evidence_status, s.verified, s.is_active, s.score_eligible,
+    s.source_document_id,
+    sd.source_name, sd.source_type, sd.url
+FROM target_account AS a
+LEFT JOIN signal AS s ON s.account_id = a.id
+LEFT JOIN source_document AS sd
+    ON sd.id = s.source_document_id
+   AND sd.account_id = a.id
+WHERE a.id = $1 AND a.company_profile_id = $2
+ORDER BY s.signal_date DESC NULLS LAST, s.created_at DESC NULLS LAST, s.id DESC`
+
+	rows, err := r.pool.Query(ctx, query, accountID, companyProfileID)
+	if err != nil {
+		return nil, false, fmt.Errorf("query account signals: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]models.Signal, 0)
+	accountFound := false
+	for rows.Next() {
+		var accountIDMarker uuid.UUID
+		var signalID *uuid.UUID
+		var signal models.Signal
+		var body, relevance, signalDateRaw, freshnessLabel *string
+		var signalDate *time.Time
+		var sourceDocumentID *uuid.UUID
+		var sourceName, sourceType *string
+		var sourceURL *string
+
+		if err := rows.Scan(&accountIDMarker, &signalID, &signal.Type, &signal.Title, &body, &signal.Strength, &relevance,
+			&signalDate, &signalDateRaw, &freshnessLabel, &signal.EvidenceStatus, &signal.Verified,
+			&signal.IsActive, &signal.ScoreEligible, &sourceDocumentID, &sourceName, &sourceType, &sourceURL); err != nil {
+			return nil, false, fmt.Errorf("scan account signal: %w", err)
+		}
+		_ = accountIDMarker
+		accountFound = true
+		if signalID == nil {
+			continue
+		}
+		signal.ID = *signalID
+		signal.Body, signal.Relevance = body, relevance
+		signal.SignalDateRaw, signal.FreshnessLabel = signalDateRaw, freshnessLabel
+		if signalDate != nil {
+			formatted := signalDate.Format("2006-01-02")
+			signal.SignalDate = &formatted
+		}
+		if sourceDocumentID != nil {
+			if sourceURL == nil {
+				return nil, false, fmt.Errorf("signal %s references an invalid source document", signal.ID)
+			}
+			signal.Source = &models.SignalSource{Name: sourceName, Type: sourceType, URL: *sourceURL}
+		}
+		items = append(items, signal)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, false, fmt.Errorf("iterate account signals: %w", err)
+	}
+	return items, accountFound, nil
 }
 
 func NewAccountRepository(pool *pgxpool.Pool) *AccountRepository {

@@ -62,3 +62,37 @@ type NextBestAction struct {
 	TimeWindow *string `json:"timeWindow"`
 	Priority   *string `json:"priority"`
 }
+
+type AccountSignalsResponse struct {
+	Summary SignalSummary `json:"summary"`
+	Items   []Signal      `json:"items"`
+}
+
+type SignalSummary struct {
+	Total  int            `json:"total"`
+	Active int            `json:"active"`
+	ByType map[string]int `json:"byType"`
+}
+
+type Signal struct {
+	ID             uuid.UUID     `json:"id"`
+	Type           string        `json:"type"`
+	Title          string        `json:"title"`
+	Body           *string       `json:"body"`
+	Strength       string        `json:"strength"`
+	Relevance      *string       `json:"relevance"`
+	SignalDate     *string       `json:"signalDate"`
+	SignalDateRaw  *string       `json:"signalDateRaw"`
+	FreshnessLabel *string       `json:"freshnessLabel"`
+	EvidenceStatus string        `json:"evidenceStatus"`
+	Verified       bool          `json:"verified"`
+	IsActive       bool          `json:"isActive"`
+	ScoreEligible  bool          `json:"scoreEligible"`
+	Source         *SignalSource `json:"source"`
+}
+
+type SignalSource struct {
+	Name *string `json:"name"`
+	Type *string `json:"type"`
+	URL  string  `json:"url"`
+}

@@ -11,5 +11,6 @@ func Register(router *gin.Engine, leadHandler *handler.LeadHandler, accountHandl
 		api.POST("/lead", leadHandler.CreateLead)
 		api.GET("/accounts", accountHandler.ListAccounts)
 		api.GET("/accounts/:accountId", accountHandler.GetAccount)
+		api.GET("/accounts/:accountId/signals", accountHandler.ListSignals)
 	}
 }

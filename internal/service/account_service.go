@@ -11,6 +11,30 @@ import (
 type AccountReader interface {
 	List(ctx context.Context, companyProfileID uuid.UUID) ([]models.Account, error)
 	GetByID(ctx context.Context, companyProfileID, accountID uuid.UUID) (*models.AccountOverview, bool, error)
+	ListSignals(ctx context.Context, companyProfileID, accountID uuid.UUID) ([]models.Signal, bool, error)
+}
+
+func (s *AccountService) ListSignals(ctx context.Context, accountID uuid.UUID) (models.AccountSignalsResponse, error) {
+	items, found, err := s.repository.ListSignals(ctx, s.companyID, accountID)
+	if err != nil {
+		return models.AccountSignalsResponse{}, err
+	}
+	if !found {
+		return models.AccountSignalsResponse{}, apperrors.NotFound("account not found", nil)
+	}
+
+	response := models.AccountSignalsResponse{
+		Summary: models.SignalSummary{ByType: make(map[string]int)},
+		Items:   items,
+	}
+	for _, item := range items {
+		response.Summary.Total++
+		if item.IsActive {
+			response.Summary.Active++
+		}
+		response.Summary.ByType[item.Type]++
+	}
+	return response, nil
 }
 
 func (s *AccountService) Get(ctx context.Context, accountID uuid.UUID) (models.AccountOverview, error) {

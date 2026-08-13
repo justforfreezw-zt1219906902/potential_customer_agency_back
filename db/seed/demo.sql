@@ -19,6 +19,15 @@ ON CONFLICT (id) DO UPDATE SET
   revenue_currency = EXCLUDED.revenue_currency, founded = EXCLUDED.founded,
   description = EXCLUDED.description, lifecycle = EXCLUDED.lifecycle;
 
+INSERT INTO source_document (id, account_id, source_name, source_type, url, content)
+VALUES
+('00000000-0000-0000-0000-000000003001', '00000000-0000-0000-0000-000000000101', 'Demo Careers', 'Career Page', 'https://focus.example/careers', 'Synthetic demo careers source.'),
+('00000000-0000-0000-0000-000000003002', '00000000-0000-0000-0000-000000000101', 'Demo Newsroom', 'News', 'https://focus.example/news', 'Synthetic demo newsroom source.'),
+('00000000-0000-0000-0000-000000003003', '00000000-0000-0000-0000-000000000102', NULL, NULL, 'https://tier1.example/company', NULL)
+ON CONFLICT (id) DO UPDATE SET
+  account_id = EXCLUDED.account_id, source_name = EXCLUDED.source_name,
+  source_type = EXCLUDED.source_type, url = EXCLUDED.url, content = EXCLUDED.content;
+
 INSERT INTO account_analysis (id, account_id, icp_score, icp_fit, signal_score, resonance_score, tier, why_this_account, why_now, next_best_action, created_at)
 VALUES
 ('00000000-0000-0000-0000-000000001001', '00000000-0000-0000-0000-000000000101', 80, 'High', 75, 70, 'Focus Accounts', 'Strong synthetic enterprise fit.', 'Historical demo timing.', '{"action":"Review account signals"}', '2026-07-01T10:00:00Z'),
@@ -33,10 +42,16 @@ ON CONFLICT (id) DO UPDATE SET
   why_now = EXCLUDED.why_now, next_best_action = EXCLUDED.next_best_action,
   created_at = EXCLUDED.created_at;
 
-INSERT INTO signal (id, signal_key, account_id, type, title, strength, evidence_status, is_active)
+INSERT INTO signal (id, signal_key, account_id, source_document_id, type, title, body, strength, relevance, signal_date, signal_date_raw, freshness_label, evidence_status, verified, is_active, score_eligible)
 VALUES
-('00000000-0000-0000-0000-000000002001', 'focus-active-one', '00000000-0000-0000-0000-000000000101', 'growth', 'Expansion signal', 'high', 'DERIVED', TRUE),
-('00000000-0000-0000-0000-000000002002', 'focus-active-two', '00000000-0000-0000-0000-000000000101', 'hiring', 'Hiring signal', 'medium', 'SOURCE_BACKED', TRUE),
-('00000000-0000-0000-0000-000000002003', 'focus-inactive', '00000000-0000-0000-0000-000000000101', 'funding', 'Historical funding signal', 'low', 'SOURCE_BACKED', FALSE),
-('00000000-0000-0000-0000-000000002004', 'tier1-active', '00000000-0000-0000-0000-000000000102', 'hiring', 'Hiring signal', 'medium', 'SOURCE_BACKED', TRUE)
-ON CONFLICT (id) DO NOTHING;
+('00000000-0000-0000-0000-000000002001', 'focus-active-one', '00000000-0000-0000-0000-000000000101', '00000000-0000-0000-0000-000000003001', 'Job Posting', 'Hiring enterprise solutions engineers', 'The account is expanding its enterprise solutions team.', 'high', 'High', '2026-08-01', NULL, 'Recent', 'SOURCE_BACKED', TRUE, TRUE, TRUE),
+('00000000-0000-0000-0000-000000002002', 'focus-active-two', '00000000-0000-0000-0000-000000000101', '00000000-0000-0000-0000-000000003002', 'News & Events', 'Expansion announcement', NULL, 'medium', 'Medium', '2026-07-20', 'July 2026', 'Recent', 'SOURCE_BACKED', TRUE, TRUE, TRUE),
+('00000000-0000-0000-0000-000000002003', 'focus-inactive', '00000000-0000-0000-0000-000000000101', NULL, 'Company Data', 'Historical company data', NULL, 'low', NULL, NULL, NULL, NULL, 'DERIVED', FALSE, FALSE, FALSE),
+('00000000-0000-0000-0000-000000002004', 'tier1-active', '00000000-0000-0000-0000-000000000102', '00000000-0000-0000-0000-000000003003', 'Company Data', 'Company profile signal', NULL, 'medium', NULL, NULL, NULL, NULL, 'INSUFFICIENT_DATA', FALSE, TRUE, FALSE)
+ON CONFLICT (id) DO UPDATE SET
+  account_id = EXCLUDED.account_id, source_document_id = EXCLUDED.source_document_id,
+  type = EXCLUDED.type, title = EXCLUDED.title, body = EXCLUDED.body,
+  strength = EXCLUDED.strength, relevance = EXCLUDED.relevance, signal_date = EXCLUDED.signal_date,
+  signal_date_raw = EXCLUDED.signal_date_raw, freshness_label = EXCLUDED.freshness_label,
+  evidence_status = EXCLUDED.evidence_status, verified = EXCLUDED.verified,
+  is_active = EXCLUDED.is_active, score_eligible = EXCLUDED.score_eligible;

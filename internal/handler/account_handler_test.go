@@ -21,6 +21,9 @@ func (s *accountHandlerTestService) Get(context.Context, uuid.UUID) (models.Acco
 	s.getCalls++
 	return models.AccountOverview{}, nil
 }
+func (s *accountHandlerTestService) ListSignals(context.Context, uuid.UUID) (models.AccountSignalsResponse, error) {
+	return models.AccountSignalsResponse{}, nil
+}
 
 func TestGetAccountRejectsMalformedUUIDBeforeServiceCall(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -33,6 +36,23 @@ func TestGetAccountRejectsMalformedUUIDBeforeServiceCall(t *testing.T) {
 	request := httptest.NewRequest("GET", "/api/accounts/not-a-uuid", nil)
 	router.ServeHTTP(recording, request)
 
+	if recording.Code != 400 {
+		t.Fatalf("handler returned status %d, want 400", recording.Code)
+	}
+	if service.getCalls != 0 {
+		t.Fatal("service should not be called for malformed UUID")
+	}
+}
+
+func TestListSignalsRejectsMalformedUUIDBeforeServiceCall(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service := &accountHandlerTestService{}
+	router := gin.New()
+	router.Use(middleware.ErrorHandler(log.Default()))
+	router.GET("/api/accounts/:accountId/signals", NewAccountHandler(service, log.Default()).ListSignals)
+
+	recording := httptest.NewRecorder()
+	router.ServeHTTP(recording, httptest.NewRequest("GET", "/api/accounts/not-a-uuid/signals", nil))
 	if recording.Code != 400 {
 		t.Fatalf("handler returned status %d, want 400", recording.Code)
 	}

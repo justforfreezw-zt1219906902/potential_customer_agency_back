@@ -312,3 +312,59 @@ Errors:
 The existing `GET /api/accounts` remains the compact list read model; its
 `analysis.nextBestAction` remains a string or `null`, while this detail endpoint
 returns the complete supported object.
+
+## Account Signals
+
+Returns all persisted Signals for a scoped Account, including inactive Signals.
+Source Documents are embedded only as traceability data; there is no public
+generic Source Document endpoint.
+
+```http
+GET /api/accounts/{accountId}/signals
+```
+
+The `accountId` path parameter must be a PostgreSQL UUID and is scoped by the
+server-side demo company. Example response:
+
+```json
+{
+  "summary": {
+    "total": 3,
+    "active": 2,
+    "byType": { "Job Posting": 1, "News & Events": 1, "Company Data": 1 }
+  },
+  "items": [
+    {
+      "id": "00000000-0000-0000-0000-000000002001",
+      "type": "Job Posting",
+      "title": "Hiring enterprise solutions engineers",
+      "body": "The account is expanding its enterprise solutions team.",
+      "strength": "high",
+      "relevance": "High",
+      "signalDate": "2026-08-01",
+      "signalDateRaw": null,
+      "freshnessLabel": "Recent",
+      "evidenceStatus": "SOURCE_BACKED",
+      "verified": true,
+      "isActive": true,
+      "scoreEligible": true,
+      "source": {
+        "name": "Demo Careers",
+        "type": "Career Page",
+        "url": "https://focus.example/careers"
+      }
+    }
+  ]
+}
+```
+
+`strength` preserves `high`, `medium`, or `low`. `evidenceStatus` preserves
+`SOURCE_BACKED`, `DERIVED`, or `INSUFFICIENT_DATA`. Optional signal fields and
+`source` remain `null`; `verified` belongs to the Signal, not its source.
+`signalDate` is date-only (`YYYY-MM-DD`).
+
+An existing account with no Signals returns HTTP 200 with `items: []`,
+`summary.total: 0`, `summary.active: 0`, and `summary.byType: {}`. Invalid UUID
+returns HTTP 400. Missing or out-of-scope accounts return HTTP 404 with
+`{"error":"account not found"}`. Database or cross-account source integrity
+errors return the normal safe HTTP 500 response.
