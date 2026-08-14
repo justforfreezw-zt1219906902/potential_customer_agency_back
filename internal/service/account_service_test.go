@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
@@ -288,5 +289,96 @@ func TestCompareDNAPortfolioServiceErrors(t *testing.T) {
 	_, err = NewAccountService(dnaPortfolioReaderStub{err: repositoryErr}, uuid.New()).CompareDNAPortfolio(context.Background(), ids)
 	if err != repositoryErr {
 		t.Fatalf("repository error was not propagated: %v", err)
+	}
+}
+
+func TestBuildDNAPortfolioEmptyAndNullableSemantics(t *testing.T) {
+	empty := buildDNAPortfolio(nil)
+	if empty.Summary.TotalProfiles != 0 || empty.Summary.ByTier == nil || len(empty.Summary.ByTier) != 0 || empty.Summary.ByIndustry == nil || len(empty.Summary.ByIndustry) != 0 || empty.Items == nil || len(empty.Items) != 0 {
+		t.Fatalf("empty portfolio is not represented by empty collections: %+v", empty)
+	}
+	accountID := uuid.MustParse("00000000-0000-0000-0000-000000000701")
+	profile := &models.CommunicationDNA{Vocabulary: models.DNAVocabulary{Terms: []models.DNATerm{{Term: "AI"}, {Term: "enterprise"}, {Term: "AI"}, {Term: "Security"}}}, DoRules: []string{}, DontRules: []string{}}
+	response := buildDNAPortfolio([]models.DNAPortfolioRow{{AccountID: accountID, Name: "Nullable", DNA: profile, SignalTypes: []string{}}})
+	if len(response.Items) != 1 || response.Items[0].Tier != nil || response.Items[0].Tone != nil || response.Items[0].ProblemFraming != nil || response.Items[0].ProofStyle != nil || response.Items[0].CTAStyle != nil {
+		t.Fatalf("nullable fields were fabricated: %+v", response.Items)
+	}
+	item := response.Items[0]
+	if item.Vocabulary == nil || item.DoRules == nil || item.DontRules == nil || item.SignalTypes == nil || len(item.Vocabulary) != 3 || item.Vocabulary[0] != "AI" || item.Vocabulary[1] != "enterprise" || item.Vocabulary[2] != "Security" {
+		t.Fatalf("collection semantics or vocabulary order incorrect: %+v", item)
+	}
+}
+
+func TestBuildDNAPortfolioExcludesAccountsWithoutDNA(t *testing.T) {
+	industry, tier := "Technology", "Tier 1"
+	withDNA := models.DNAPortfolioRow{AccountID: uuid.MustParse("00000000-0000-0000-0000-000000000702"), Name: "Included", Industry: &industry, Tier: &tier, DNA: &models.CommunicationDNA{Vocabulary: models.DNAVocabulary{Terms: []models.DNATerm{}}}}
+	withoutDNA := models.DNAPortfolioRow{AccountID: uuid.MustParse("00000000-0000-0000-0000-000000000703"), Name: "Excluded", Industry: &industry, Tier: &tier}
+	response := buildDNAPortfolio([]models.DNAPortfolioRow{withoutDNA, withDNA})
+	if len(response.Items) != 1 || response.Items[0].Name != "Included" || response.Summary.TotalProfiles != 1 || response.Summary.ByTier[tier] != 1 || response.Summary.ByIndustry[industry] != 1 {
+		t.Fatalf("account without DNA affected portfolio: %+v", response)
+	}
+}
+
+func TestBuildDNAPortfolioOrdersTierNameAndIDDeterministically(t *testing.T) {
+	tiers := []string{"Focus Accounts", "Tier 1", "Tier 2", "Below ICP"}
+	rows := make([]models.DNAPortfolioRow, 0, 6)
+	for i, tier := range tiers {
+		rows = append(rows, models.DNAPortfolioRow{AccountID: uuid.MustParse(fmt.Sprintf("00000000-0000-0000-0000-000000000%03d", i+10)), Name: "Zeta", Tier: &tier, DNA: &models.CommunicationDNA{Vocabulary: models.DNAVocabulary{Terms: []models.DNATerm{}}}})
+	}
+	rows = append(rows,
+		models.DNAPortfolioRow{AccountID: uuid.MustParse("00000000-0000-0000-0000-000000000715"), Name: "Alpha", Tier: &tiers[0], DNA: &models.CommunicationDNA{Vocabulary: models.DNAVocabulary{Terms: []models.DNATerm{}}}},
+		models.DNAPortfolioRow{AccountID: uuid.MustParse("00000000-0000-0000-0000-000000000711"), Name: "Same", Tier: &tiers[1], DNA: &models.CommunicationDNA{Vocabulary: models.DNAVocabulary{Terms: []models.DNATerm{}}}},
+		models.DNAPortfolioRow{AccountID: uuid.MustParse("00000000-0000-0000-0000-000000000712"), Name: "Same", Tier: &tiers[1], DNA: &models.CommunicationDNA{Vocabulary: models.DNAVocabulary{Terms: []models.DNATerm{}}}},
+		models.DNAPortfolioRow{AccountID: uuid.MustParse("00000000-0000-0000-0000-000000000719"), Name: "Unranked", DNA: &models.CommunicationDNA{Vocabulary: models.DNAVocabulary{Terms: []models.DNATerm{}}}},
+	)
+	response := buildDNAPortfolio(rows)
+	order := make([]string, len(response.Items))
+	for i, item := range response.Items {
+		order[i] = item.Name + ":" + item.AccountID.String()
+	}
+	expected := []string{"Alpha:00000000-0000-0000-0000-000000000715", "Zeta:00000000-0000-0000-0000-000000000010", "Same:00000000-0000-0000-0000-000000000711", "Same:00000000-0000-0000-0000-000000000712", "Zeta:00000000-0000-0000-0000-000000000011", "Zeta:00000000-0000-0000-0000-000000000012", "Zeta:00000000-0000-0000-0000-000000000013", "Unranked:00000000-0000-0000-0000-000000000719"}
+	if !reflect.DeepEqual(order, expected) {
+		t.Fatalf("unexpected deterministic order: %v", order)
+	}
+}
+
+func TestCompareDNAPortfolioDeduplicatesAndSortsEveryCollection(t *testing.T) {
+	technical, proofA, proofB, ctaA, ctaB := "Technical", "Benchmarks", "Case Study", "Consultative", "Direct"
+	makeDNA := func(tone, proof, cta *string, vocab, doRules, dontRules []string) *models.CommunicationDNA {
+		terms := make([]models.DNATerm, 0, len(vocab))
+		for _, value := range vocab {
+			terms = append(terms, models.DNATerm{Term: value})
+		}
+		return &models.CommunicationDNA{Tone: models.DNAStyle{Primary: tone}, Vocabulary: models.DNAVocabulary{Terms: terms}, ProofStyle: models.DNAStyle{Primary: proof}, CTAPatterns: models.DNACallToAction{Style: cta}, DoRules: doRules, DontRules: dontRules}
+	}
+	rows := []models.DNAPortfolioRow{
+		{AccountID: uuid.MustParse("00000000-0000-0000-0000-000000000721"), Name: "Bravo", DNA: makeDNA(&technical, &proofA, &ctaA, []string{"enterprise", "enterprise", "AI"}, []string{"Be precise", "Be precise"}, []string{"Avoid fluff", "Avoid fluff"}), SignalTypes: []string{"Hiring", "Hiring", "Product"}},
+		{AccountID: uuid.MustParse("00000000-0000-0000-0000-000000000722"), Name: "Alpha", DNA: makeDNA(&technical, &proofB, &ctaB, []string{"enterprise", "security"}, []string{"Be precise"}, []string{"Avoid jargon"}), SignalTypes: []string{"Hiring"}},
+		{AccountID: uuid.MustParse("00000000-0000-0000-0000-000000000723"), Name: "Null Style", DNA: makeDNA(nil, nil, nil, nil, nil, nil), SignalTypes: []string{}},
+	}
+	response := compareDNAPortfolio(rows)
+	assertCounts := func(name string, got []models.DNAValueCount, expected []models.DNAValueCount) {
+		if !reflect.DeepEqual(got, expected) {
+			t.Fatalf("%s ordering/counts: got=%+v want=%+v", name, got, expected)
+		}
+	}
+	assertCounts("dominantTone", response.DominantTone, []models.DNAValueCount{{Value: "Technical", Count: 2}})
+	assertCounts("sharedVocabulary", response.SharedVocabulary, []models.DNAValueCount{{Value: "enterprise", Count: 2}})
+	assertCounts("uniqueVocabulary", response.UniqueVocabulary, []models.DNAValueCount{{Value: "AI", Count: 1}, {Value: "security", Count: 1}})
+	assertCounts("proofStyles", response.ProofStyles, []models.DNAValueCount{{Value: "Benchmarks", Count: 1}, {Value: "Case Study", Count: 1}})
+	assertCounts("ctaStyles", response.CTAStyles, []models.DNAValueCount{{Value: "Consultative", Count: 1}, {Value: "Direct", Count: 1}})
+	assertCounts("doRules", response.DoRules, []models.DNAValueCount{{Value: "Be precise", Count: 2}})
+	assertCounts("dontRules", response.DontRules, []models.DNAValueCount{{Value: "Avoid fluff", Count: 1}, {Value: "Avoid jargon", Count: 1}})
+	assertCounts("signalTypes", response.SignalTypes, []models.DNAValueCount{{Value: "Hiring", Count: 2}, {Value: "Product", Count: 1}})
+	if len(response.ProblemFraming) != 3 || response.ProblemFraming[0].AccountName != "Alpha" || response.ProblemFraming[1].AccountName != "Bravo" || response.ProblemFraming[2].Value != nil {
+		t.Fatalf("problem framing order/null: %+v", response.ProblemFraming)
+	}
+}
+
+func TestCompareDNAPortfolioEmptyCollectionsRemainNonNil(t *testing.T) {
+	rows := []models.DNAPortfolioRow{{AccountID: uuid.MustParse("00000000-0000-0000-0000-000000000731"), Name: "A", DNA: &models.CommunicationDNA{}}, {AccountID: uuid.MustParse("00000000-0000-0000-0000-000000000732"), Name: "B", DNA: &models.CommunicationDNA{}}}
+	response := compareDNAPortfolio(rows)
+	if response.DominantTone == nil || response.SharedVocabulary == nil || response.UniqueVocabulary == nil || response.ProofStyles == nil || response.CTAStyles == nil || response.DoRules == nil || response.DontRules == nil || response.SignalTypes == nil || response.ProblemFraming == nil || len(response.ProblemFraming) != 2 {
+		t.Fatalf("empty compare collections are nil or framing missing: %+v", response)
 	}
 }
