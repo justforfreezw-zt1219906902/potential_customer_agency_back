@@ -14,6 +14,31 @@ type AccountReader interface {
 	ListSignals(ctx context.Context, companyProfileID, accountID uuid.UUID) ([]models.Signal, bool, error)
 	GetCommunicationDNA(ctx context.Context, companyProfileID, accountID uuid.UUID) (*models.CommunicationDNA, bool, bool, error)
 	ListSignalPulseRows(ctx context.Context, companyProfileID uuid.UUID) ([]models.SignalPulseRow, error)
+	ListDNAPortfolioRows(ctx context.Context, companyProfileID uuid.UUID, accountIDs []uuid.UUID) ([]models.DNAPortfolioRow, error)
+}
+
+func (s *AccountService) ListDNAPortfolio(ctx context.Context) (models.DNAPortfolioResponse, error) {
+	rows, err := s.repository.ListDNAPortfolioRows(ctx, s.companyID, nil)
+	if err != nil {
+		return models.DNAPortfolioResponse{}, err
+	}
+	return buildDNAPortfolio(rows), nil
+}
+
+func (s *AccountService) CompareDNAPortfolio(ctx context.Context, ids []uuid.UUID) (models.DNACompareResponse, error) {
+	rows, err := s.repository.ListDNAPortfolioRows(ctx, s.companyID, ids)
+	if err != nil {
+		return models.DNACompareResponse{}, err
+	}
+	if len(rows) != len(ids) {
+		return models.DNACompareResponse{}, apperrors.NotFound("account not found", nil)
+	}
+	for _, row := range rows {
+		if row.DNA == nil {
+			return models.DNACompareResponse{}, apperrors.BadRequest("selected account has no communication DNA", nil)
+		}
+	}
+	return compareDNAPortfolio(rows), nil
 }
 
 func (s *AccountService) GetCommunicationDNA(ctx context.Context, accountID uuid.UUID) (models.CommunicationDNAResponse, error) {

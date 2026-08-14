@@ -321,6 +321,56 @@ func NewAccountRepository(pool *pgxpool.Pool) *AccountRepository {
 	return &AccountRepository{pool: pool}
 }
 
+func (r *AccountRepository) ListDNAPortfolioRows(ctx context.Context, companyProfileID uuid.UUID, accountIDs []uuid.UUID) ([]models.DNAPortfolioRow, error) {
+	const query = `
+SELECT a.id, a.name, a.industry, aa.tier, d.id, d.tone, d.vocabulary, d.value_propositions, d.problem_framing, d.proof_style, d.cta_patterns, d.recurring_phrases, d.do_rules, d.dont_rules, d.created_at,
+       COALESCE(s.active_count, 0), COALESCE(s.types, ARRAY[]::text[])
+FROM target_account a
+LEFT JOIN LATERAL (SELECT tier FROM account_analysis WHERE account_id=a.id ORDER BY created_at DESC, id DESC LIMIT 1) aa ON TRUE
+LEFT JOIN LATERAL (SELECT id, tone, vocabulary, value_propositions, problem_framing, proof_style, cta_patterns, recurring_phrases, do_rules, dont_rules, created_at FROM communication_dna WHERE account_id=a.id ORDER BY created_at DESC, id DESC LIMIT 1) d ON TRUE
+LEFT JOIN LATERAL (SELECT COUNT(*)::int AS active_count, ARRAY_AGG(DISTINCT type ORDER BY type) FILTER (WHERE type IS NOT NULL) AS types FROM signal WHERE account_id=a.id AND is_active=TRUE) s ON TRUE
+WHERE a.company_profile_id=$1 AND ($2::uuid[] IS NULL OR a.id=ANY($2::uuid[]))
+ORDER BY a.id`
+	rows, err := r.pool.Query(ctx, query, companyProfileID, accountIDs)
+	if err != nil {
+		return nil, fmt.Errorf("query DNA portfolio: %w", err)
+	}
+	defer rows.Close()
+	result := make([]models.DNAPortfolioRow, 0)
+	for rows.Next() {
+		var row models.DNAPortfolioRow
+		var dnaID *uuid.UUID
+		var tone, vocab, props, problem, proof, cta, phrases, doRules, dontRules []byte
+		var created *time.Time
+		if err := rows.Scan(&row.AccountID, &row.Name, &row.Industry, &row.Tier, &dnaID, &tone, &vocab, &props, &problem, &proof, &cta, &phrases, &doRules, &dontRules, &created, &row.ActiveSignalCount, &row.SignalTypes); err != nil {
+			return nil, fmt.Errorf("scan DNA portfolio: %w", err)
+		}
+		if dnaID != nil {
+			if created == nil {
+				return nil, fmt.Errorf("invalid DNA portfolio row for account %s", row.AccountID)
+			}
+			for n, v := range map[string][]byte{"tone": tone, "vocabulary": vocab, "value_propositions": props, "problem_framing": problem, "proof_style": proof, "cta_patterns": cta, "recurring_phrases": phrases, "do_rules": doRules, "dont_rules": dontRules} {
+				if v == nil {
+					return nil, fmt.Errorf("communication DNA %s is null", n)
+				}
+			}
+			dna, err := parseCommunicationDNA(*dnaID, row.AccountID, tone, vocab, props, problem, proof, cta, phrases, doRules, dontRules, *created)
+			if err != nil {
+				return nil, err
+			}
+			row.DNA = dna
+		}
+		if row.SignalTypes == nil {
+			row.SignalTypes = []string{}
+		}
+		result = append(result, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate DNA portfolio: %w", err)
+	}
+	return result, nil
+}
+
 func (r *AccountRepository) List(ctx context.Context, companyProfileID uuid.UUID) ([]models.Account, error) {
 	const query = `
 SELECT

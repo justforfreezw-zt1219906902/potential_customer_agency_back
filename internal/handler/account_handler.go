@@ -17,6 +17,48 @@ type AccountLister interface {
 	ListSignals(ctx context.Context, accountID uuid.UUID) (models.AccountSignalsResponse, error)
 	GetCommunicationDNA(ctx context.Context, accountID uuid.UUID) (models.CommunicationDNAResponse, error)
 	SignalPulse(ctx context.Context) (models.SignalPulseResponse, error)
+	ListDNAPortfolio(ctx context.Context) (models.DNAPortfolioResponse, error)
+	CompareDNAPortfolio(ctx context.Context, ids []uuid.UUID) (models.DNACompareResponse, error)
+}
+
+func (h *AccountHandler) ListDNAPortfolio(c *gin.Context) {
+	response, err := h.service.ListDNAPortfolio(c.Request.Context())
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	c.JSON(http.StatusOK, response)
+}
+
+func (h *AccountHandler) CompareDNAPortfolio(c *gin.Context) {
+	var request struct {
+		AccountIDs []string `json:"accountIds"`
+	}
+	if err := c.ShouldBindJSON(&request); err != nil || request.AccountIDs == nil || len(request.AccountIDs) < 2 {
+		_ = c.Error(errors.BadRequest("accountIds must contain at least 2 valid UUIDs", err))
+		return
+	}
+	ids := make([]uuid.UUID, len(request.AccountIDs))
+	seen := map[uuid.UUID]struct{}{}
+	for i, value := range request.AccountIDs {
+		id, err := uuid.Parse(value)
+		if err != nil {
+			_ = c.Error(errors.BadRequest("accountIds must contain valid UUIDs", err))
+			return
+		}
+		if _, ok := seen[id]; ok {
+			_ = c.Error(errors.BadRequest("accountIds must not contain duplicates", nil))
+			return
+		}
+		seen[id] = struct{}{}
+		ids[i] = id
+	}
+	response, err := h.service.CompareDNAPortfolio(c.Request.Context(), ids)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	c.JSON(http.StatusOK, response)
 }
 
 func (h *AccountHandler) GetCommunicationDNA(c *gin.Context) {

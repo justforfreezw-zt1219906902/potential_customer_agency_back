@@ -25,6 +25,9 @@ func (accountReaderStub) GetCommunicationDNA(context.Context, uuid.UUID, uuid.UU
 func (accountReaderStub) ListSignalPulseRows(context.Context, uuid.UUID) ([]models.SignalPulseRow, error) {
 	return nil, nil
 }
+func (accountReaderStub) ListDNAPortfolioRows(context.Context, uuid.UUID, []uuid.UUID) ([]models.DNAPortfolioRow, error) {
+	return nil, nil
+}
 
 func TestAccountServiceListSignalsBuildsSummary(t *testing.T) {
 	reader := signalReaderStub{items: []models.Signal{
@@ -58,6 +61,9 @@ func (s signalReaderStub) GetCommunicationDNA(context.Context, uuid.UUID, uuid.U
 	return nil, true, false, nil
 }
 func (s signalReaderStub) ListSignalPulseRows(context.Context, uuid.UUID) ([]models.SignalPulseRow, error) {
+	return nil, nil
+}
+func (s signalReaderStub) ListDNAPortfolioRows(context.Context, uuid.UUID, []uuid.UUID) ([]models.DNAPortfolioRow, error) {
 	return nil, nil
 }
 
@@ -213,5 +219,44 @@ func TestAccountServiceGetReturnsNotFoundForScopedMissingAccount(t *testing.T) {
 	appErr, ok := errors.AsAppError(err)
 	if !ok || appErr.Status != 404 || appErr.Message != "account not found" {
 		t.Fatalf("unexpected error: %#v", err)
+	}
+}
+
+func TestBuildDNAPortfolioMapsAndOrdersPersistedProfiles(t *testing.T) {
+	tone, proof, cta, problem, industry, tier := "Technical", "Benchmarks", "Consultative", "Exact framing", "Technology", "Focus Accounts"
+	rows := []models.DNAPortfolioRow{
+		{AccountID: uuid.MustParse("00000000-0000-0000-0000-000000000402"), Name: "Beta", Industry: &industry, Tier: &tier, ActiveSignalCount: 2, SignalTypes: []string{"Product", "Hiring"}, DNA: &models.CommunicationDNA{Tone: models.DNAStyle{Primary: &tone}, Vocabulary: models.DNAVocabulary{Terms: []models.DNATerm{{Term: "enterprise"}, {Term: "enterprise"}, {Term: "AI"}}}, ProblemFraming: models.DNAProblem{Description: &problem}, ProofStyle: models.DNAStyle{Primary: &proof}, CTAPatterns: models.DNACallToAction{Style: &cta}, DoRules: []string{"Be precise"}, DontRules: []string{"Avoid fluff"}}},
+		{AccountID: uuid.MustParse("00000000-0000-0000-0000-000000000401"), Name: "Alpha", DNA: nil},
+	}
+	response := buildDNAPortfolio(rows)
+	if len(response.Items) != 1 || response.Items[0].Name != "Beta" || response.Items[0].Vocabulary[0] != "enterprise" || len(response.Items[0].Vocabulary) != 2 {
+		t.Fatalf("unexpected portfolio: %+v", response)
+	}
+	if response.Items[0].Industry == nil || response.Items[0].Tier == nil || response.Items[0].Tone == nil || response.Items[0].ProblemFraming == nil || response.Items[0].ProofStyle == nil || response.Items[0].CTAStyle == nil {
+		t.Fatalf("nullable mappings lost: %+v", response.Items[0])
+	}
+	if len(response.Items[0].SignalTypes) != 2 || response.Summary.TotalProfiles != 1 || response.Summary.ByTier["Focus Accounts"] != 1 {
+		t.Fatalf("unexpected summary/signals: %+v", response)
+	}
+}
+
+func TestCompareDNAPortfolioCountsAccountsNotOccurrences(t *testing.T) {
+	one, two, problem := "Technical", "Case Study", "A framing"
+	rows := []models.DNAPortfolioRow{
+		{AccountID: uuid.MustParse("00000000-0000-0000-0000-000000000411"), Name: "A", SignalTypes: []string{"Hiring", "Product"}, DNA: &models.CommunicationDNA{Tone: models.DNAStyle{Primary: &one}, Vocabulary: models.DNAVocabulary{Terms: []models.DNATerm{{Term: "enterprise"}, {Term: "enterprise"}, {Term: "AI"}}}, ProofStyle: models.DNAStyle{Primary: &one}, DoRules: []string{"Be precise"}, ProblemFraming: models.DNAProblem{Description: &problem}}},
+		{AccountID: uuid.MustParse("00000000-0000-0000-0000-000000000412"), Name: "B", SignalTypes: []string{"Hiring"}, DNA: &models.CommunicationDNA{Tone: models.DNAStyle{Primary: &one}, Vocabulary: models.DNAVocabulary{Terms: []models.DNATerm{{Term: "enterprise"}, {Term: "security"}}}, ProofStyle: models.DNAStyle{Primary: &two}, DoRules: []string{"Be precise"}, ProblemFraming: models.DNAProblem{Description: nil}}},
+	}
+	response := compareDNAPortfolio(rows)
+	if response.SelectedCount != 2 || response.DominantTone[0].Value != "Technical" || response.DominantTone[0].Count != 2 {
+		t.Fatalf("unexpected tone: %+v", response)
+	}
+	if len(response.SharedVocabulary) != 1 || response.SharedVocabulary[0].Value != "enterprise" || response.SharedVocabulary[0].Count != 2 {
+		t.Fatalf("unexpected shared vocabulary: %+v", response.SharedVocabulary)
+	}
+	if len(response.UniqueVocabulary) != 2 || response.UniqueVocabulary[0].Value != "AI" || response.UniqueVocabulary[1].Value != "security" {
+		t.Fatalf("unexpected unique vocabulary: %+v", response.UniqueVocabulary)
+	}
+	if len(response.ProblemFraming) != 2 || response.ProblemFraming[1].Value != nil {
+		t.Fatalf("null framing not preserved: %+v", response.ProblemFraming)
 	}
 }

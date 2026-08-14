@@ -14,5 +14,7 @@ func Register(router *gin.Engine, leadHandler *handler.LeadHandler, accountHandl
 		api.GET("/accounts/:accountId/signals", accountHandler.ListSignals)
 		api.GET("/accounts/:accountId/communication-dna", accountHandler.GetCommunicationDNA)
 		api.GET("/signal-pulse", accountHandler.SignalPulse)
+		api.GET("/dna-portfolio", accountHandler.ListDNAPortfolio)
+		api.POST("/dna-portfolio/compare", accountHandler.CompareDNAPortfolio)
 	}
 }

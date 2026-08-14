@@ -205,3 +205,62 @@ type SignalSource struct {
 	Type *string `json:"type"`
 	URL  string  `json:"url"`
 }
+
+type DNAPortfolioRow struct {
+	AccountID         uuid.UUID
+	Name              string
+	Industry          *string
+	Tier              *string
+	DNA               *CommunicationDNA
+	ActiveSignalCount int
+	SignalTypes       []string
+}
+
+type DNAPortfolioResponse struct {
+	Summary DNAPortfolioSummary `json:"summary"`
+	Items   []DNAPortfolioItem  `json:"items"`
+}
+type DNAPortfolioSummary struct {
+	TotalProfiles int            `json:"totalProfiles"`
+	ByTier        map[string]int `json:"byTier"`
+	ByIndustry    map[string]int `json:"byIndustry"`
+}
+type DNAPortfolioItem struct {
+	AccountID         uuid.UUID `json:"accountId"`
+	Name              string    `json:"name"`
+	Industry          *string   `json:"industry"`
+	Tier              *string   `json:"tier"`
+	ActiveSignalCount int       `json:"activeSignalCount"`
+	Tone              *string   `json:"tone"`
+	Vocabulary        []string  `json:"vocabulary"`
+	ProblemFraming    *string   `json:"problemFraming"`
+	ProofStyle        *string   `json:"proofStyle"`
+	CTAStyle          *string   `json:"ctaStyle"`
+	DoRules           []string  `json:"doRules"`
+	DontRules         []string  `json:"dontRules"`
+	SignalTypes       []string  `json:"signalTypes"`
+}
+type DNACompareRequest struct {
+	AccountIDs []uuid.UUID `json:"accountIds"`
+}
+type DNACompareResponse struct {
+	SelectedCount    int                     `json:"selectedCount"`
+	DominantTone     []DNAValueCount         `json:"dominantTone"`
+	SharedVocabulary []DNAValueCount         `json:"sharedVocabulary"`
+	UniqueVocabulary []DNAValueCount         `json:"uniqueVocabulary"`
+	ProofStyles      []DNAValueCount         `json:"proofStyles"`
+	CTAStyles        []DNAValueCount         `json:"ctaStyles"`
+	DoRules          []DNAValueCount         `json:"doRules"`
+	DontRules        []DNAValueCount         `json:"dontRules"`
+	SignalTypes      []DNAValueCount         `json:"signalTypes"`
+	ProblemFraming   []DNAProblemFramingItem `json:"problemFraming"`
+}
+type DNAValueCount struct {
+	Value string `json:"value"`
+	Count int    `json:"count"`
+}
+type DNAProblemFramingItem struct {
+	AccountID   uuid.UUID `json:"accountId"`
+	AccountName string    `json:"accountName"`
+	Value       *string   `json:"value"`
+}

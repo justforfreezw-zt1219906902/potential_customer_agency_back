@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -15,11 +17,15 @@ import (
 )
 
 type accountHandlerTestService struct {
-	getCalls         int
-	listSignalsCalls int
-	dnaCalls         int
-	pulseCalls       int
-	pulseResponse    models.SignalPulseResponse
+	getCalls          int
+	listSignalsCalls  int
+	dnaCalls          int
+	pulseCalls        int
+	pulseResponse     models.SignalPulseResponse
+	portfolioResponse models.DNAPortfolioResponse
+	compareResponse   models.DNACompareResponse
+	portfolioCalls    int
+	compareCalls      int
 }
 
 func (s *accountHandlerTestService) List(context.Context) (models.AccountListResponse, error) {
@@ -41,6 +47,38 @@ func (s *accountHandlerTestService) GetCommunicationDNA(context.Context, uuid.UU
 func (s *accountHandlerTestService) SignalPulse(context.Context) (models.SignalPulseResponse, error) {
 	s.pulseCalls++
 	return s.pulseResponse, nil
+}
+func (s *accountHandlerTestService) ListDNAPortfolio(context.Context) (models.DNAPortfolioResponse, error) {
+	s.portfolioCalls++
+	return s.portfolioResponse, nil
+}
+func (s *accountHandlerTestService) CompareDNAPortfolio(context.Context, []uuid.UUID) (models.DNACompareResponse, error) {
+	s.compareCalls++
+	return s.compareResponse, nil
+}
+
+func TestDNAPortfolioHandlersReturnRepresentativeResponses(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	accountID := uuid.MustParse("00000000-0000-0000-0000-000000000501")
+	service := &accountHandlerTestService{portfolioResponse: models.DNAPortfolioResponse{Summary: models.DNAPortfolioSummary{TotalProfiles: 1, ByTier: map[string]int{}, ByIndustry: map[string]int{}}, Items: []models.DNAPortfolioItem{{AccountID: accountID, Name: "Example", Vocabulary: []string{}, DoRules: []string{}, DontRules: []string{}, SignalTypes: []string{}}}}, compareResponse: models.DNACompareResponse{SelectedCount: 2, DominantTone: []models.DNAValueCount{}, SharedVocabulary: []models.DNAValueCount{}, UniqueVocabulary: []models.DNAValueCount{}, ProofStyles: []models.DNAValueCount{}, CTAStyles: []models.DNAValueCount{}, DoRules: []models.DNAValueCount{}, DontRules: []models.DNAValueCount{}, SignalTypes: []models.DNAValueCount{}, ProblemFraming: []models.DNAProblemFramingItem{}}}
+	router := gin.New()
+	router.Use(middleware.ErrorHandler(log.Default()))
+	h := NewAccountHandler(service, log.Default())
+	router.GET("/api/dna-portfolio", h.ListDNAPortfolio)
+	router.POST("/api/dna-portfolio/compare", h.CompareDNAPortfolio)
+	get := httptest.NewRecorder()
+	router.ServeHTTP(get, httptest.NewRequest(http.MethodGet, "/api/dna-portfolio", nil))
+	if get.Code != http.StatusOK || service.portfolioCalls != 1 || !bytes.Contains(get.Body.Bytes(), []byte(`"totalProfiles":1`)) {
+		t.Fatalf("unexpected portfolio response: %d %s", get.Code, get.Body.String())
+	}
+	post := httptest.NewRecorder()
+	body := strings.NewReader(`{"accountIds":["00000000-0000-0000-0000-000000000501","00000000-0000-0000-0000-000000000502"]}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/dna-portfolio/compare", body)
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(post, req)
+	if post.Code != http.StatusOK || service.compareCalls != 1 || !bytes.Contains(post.Body.Bytes(), []byte(`"selectedCount":2`)) {
+		t.Fatalf("unexpected compare response: %d %s", post.Code, post.Body.String())
+	}
 }
 
 func TestSignalPulseHandlerReturnsResponse(t *testing.T) {
