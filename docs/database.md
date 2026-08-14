@@ -24,12 +24,20 @@ The master changelog currently includes:
 - `002-update-leads-for-short-form.yaml`
 - `003-create-abm-intelligence-schema.yaml`
 - `004-reconcile-sr1-schema.yaml`
+- `005-correct-sr1-signal-columns.yaml`
 
 Migration `004` adds nullable Signal evidence/interpretation fields, enforces
 non-negative target-account revenue, defaults new ICP profiles to inactive,
 and enables `gen_random_uuid()` defaults for entity IDs except
 `company_profile.id`. Existing rows and UUIDs are unchanged. The migration
-halts when any existing target account has negative `revenue_m`.
+halts when any existing target account has negative `revenue_m`. Its initial
+physical definitions included `found_via VARCHAR(100)` and
+`observed_live_at TIMESTAMPTZ`.
+
+Migration `005` corrects the approved SR1 physical schema to
+`found_via TEXT` and `observed_live_at DATE`, and adds the validated
+`chk_signal_interpretation_status` constraint. Databases that already applied
+`004` migrate forward through `005`; historical changesets are not rewritten.
 
 See [the ABM schema guide](ABM_Intelligence_Database_Schema_Guide.md) for
 entity meaning, field semantics, relationships, and value rules. This file

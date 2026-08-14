@@ -81,3 +81,19 @@ entities can use safe database-generated UUIDs.
 
 Impact: Future migrations must preserve this distinction and must not replace
 existing UUID values.
+
+## DEC-008 — Separate Signal facts from interpretation
+
+Status: Accepted
+
+Decision: Signal source and factual content belongs in `body` and `quote`.
+Analytical content belongs in `interpretation` with its grounding recorded in
+`interpretation_status`. Optional human analytical commentary belongs in
+`user_interpretation`.
+
+Reason: Preserving this boundary prevents AI interpretation from being
+represented as source fact and keeps provenance explicit.
+
+Impact: Future import and AI pipelines must populate the appropriate semantic
+layer. These fields remain database-only and are not exposed by the current
+public API or API-CONTRACT-R2.

@@ -591,7 +591,8 @@ Therefore an agent must **not invent ENUMs or CHECK constraints** for these fiel
 
 Stores structured buying/account signals.
 
-A signal represents a meaningful piece of evidence or derived intelligence about a target account.
+A signal represents a meaningful piece of evidence about a target account,
+with analytical interpretation stored separately from source facts.
 
 Examples:
 
@@ -640,7 +641,14 @@ new signal
 | `source_document_id` | UUID | No | FK | Primary source document |
 | `type` | VARCHAR(100) | Yes | Open taxonomy | Signal category |
 | `title` | TEXT | Yes | Free text | Short signal title |
-| `body` | TEXT | No | Free text | Detailed evidence/reasoning |
+| `body` | TEXT | No | Free text | Normalized factual/evidence description of the Signal |
+| `quote` | TEXT | No | Free text | Source quotation or excerpt where available |
+| `interpretation` | TEXT | No | Free text | Analytical or AI reading of the evidence |
+| `interpretation_status` | VARCHAR(30) | No | `SOURCE_BACKED`, `DERIVED`, `INSUFFICIENT_DATA` | Grounding status of the interpretation |
+| `user_interpretation` | TEXT | No | Free text | Optional user-authored analytical interpretation |
+| `coverage` | TEXT | No | Free text | Research or source coverage inspected |
+| `found_via` | TEXT | No | Free text | Discovery/search method, query, or context; unrestricted text |
+| `observed_live_at` | DATE | No | Calendar date | Date the underlying live item was last observed live |
 | `strength` | VARCHAR(10) | Yes | `high`, `medium`, `low` | Signal strength |
 | `relevance` | VARCHAR(10) | No | `High`, `Medium`, `Low` | Relevance to seller/use case |
 | `signal_date` | DATE | No | Valid date | Exact event/publication date when known |
@@ -656,6 +664,30 @@ new signal
 | `superseded_by_signal_id` | UUID | No | Self-FK | New signal replacing this one |
 | `created_at` | TIMESTAMPTZ | Yes | Timestamp | Created time |
 | `updated_at` | TIMESTAMPTZ | Yes | Timestamp | Updated time |
+
+---
+
+## Signal fact and interpretation separation
+
+`body` and `quote` represent source/factual Signal content. `interpretation`
+stores analytical reasoning, while `interpretation_status` records how that
+reasoning is grounded. Its allowed non-null values are:
+
+```text
+SOURCE_BACKED
+DERIVED
+INSUFFICIENT_DATA
+```
+
+`user_interpretation` is optional human-authored analytical commentary.
+`coverage` describes the research or source coverage inspected. `found_via`
+captures the discovery method, query, or context and is unrestricted `TEXT`,
+not `VARCHAR(100)`.
+
+`observed_live_at` is the calendar date on which the underlying live item was
+last observed live. It is a `DATE`, not a timestamp. It is not currently an
+input to Signal Pulse Going Cold; existing Signal Pulse semantics are
+unchanged.
 
 ---
 
