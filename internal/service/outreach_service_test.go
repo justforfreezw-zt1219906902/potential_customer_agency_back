@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -67,6 +68,68 @@ func TestOutreachServiceProviderFailuresReturn502(t *testing.T) {
 		appErr, ok := apperrors.AsAppError(err)
 		if !ok || appErr.Status != 502 {
 			t.Fatalf("err=%v", err)
+		}
+	}
+}
+
+func TestOutreachServiceValidationAndProviderError(t *testing.T) {
+	ids := []uuid.UUID{uuid.MustParse("00000000-0000-0000-0000-000000000911"), uuid.MustParse("00000000-0000-0000-0000-000000000912")}
+	cases := []struct {
+		name   string
+		data   outreach.ContextData
+		status int
+	}{{"missing account", outreach.ContextData{}, 404}, {"missing anchor", outreach.ContextData{AccountFound: true}, 400}}
+	for _, tc := range cases {
+		generator := &outreachGeneratorStub{}
+		_, err := NewOutreachService(outreachReaderStub{data: tc.data}, uuid.New(), generator).Generate(context.Background(), ids[0], outreachRequest("subject"))
+		appErr, ok := apperrors.AsAppError(err)
+		if !ok || appErr.Status != tc.status || generator.called {
+			t.Fatalf("%s err=%v called=%v", tc.name, err, generator.called)
+		}
+	}
+	runtimeErr := errors.New("provider failed")
+	generator := &outreachGeneratorStub{err: runtimeErr}
+	_, err := NewOutreachService(outreachReaderStub{data: outreachContext(true)}, uuid.New(), generator).Generate(context.Background(), ids[0], outreachRequest("subject"))
+	appErr, ok := apperrors.AsAppError(err)
+	if !ok || appErr.Status != 502 || appErr.Message != "outreach generation unavailable" {
+		t.Fatalf("provider error=%v", err)
+	}
+}
+
+func TestOutreachServicePartialGenerationAndTraceability(t *testing.T) {
+	output := outreach.Output{GeneratedParts: outreach.Draft{Subject: "subject", Opening: "opening", Value: "value", CTA: "cta"}}
+	supporting := []outreach.Signal{{ID: "00000000-0000-0000-0000-000000000922", EvidenceStatus: "SOURCE_BACKED", Verified: true, ScoreEligible: true}, {ID: "00000000-0000-0000-0000-000000000923"}}
+	data := outreachContext(true)
+	data.SupportingSignals = supporting
+	data.CommunicationDNA = struct{}{}
+	tier := "Tier 1"
+	data.LatestAnalysis = &outreach.Analysis{Tier: &tier}
+	cases := []struct {
+		part  string
+		check func(models.OutreachGeneratedParts) bool
+	}{{"subject", func(p models.OutreachGeneratedParts) bool {
+		return p.Subject != nil && p.Opening == nil && p.Value == nil && p.CTA == nil
+	}}, {"opening", func(p models.OutreachGeneratedParts) bool {
+		return p.Subject == nil && p.Opening != nil && p.Value == nil && p.CTA == nil
+	}}, {"value", func(p models.OutreachGeneratedParts) bool {
+		return p.Subject == nil && p.Opening == nil && p.Value != nil && p.CTA == nil
+	}}, {"cta", func(p models.OutreachGeneratedParts) bool {
+		return p.Subject == nil && p.Opening == nil && p.Value == nil && p.CTA != nil
+	}}, {"all", func(p models.OutreachGeneratedParts) bool {
+		return p.Subject != nil && p.Opening != nil && p.Value != nil && p.CTA != nil
+	}}}
+	for _, tc := range cases {
+		generator := &outreachGeneratorStub{output: output}
+		parts := []string{tc.part}
+		if tc.part == "all" {
+			parts = []string{"subject", "opening", "value", "cta"}
+		}
+		response, err := NewOutreachService(outreachReaderStub{data: data}, uuid.New(), generator).Generate(context.Background(), uuid.New(), outreachRequest(parts...))
+		if err != nil || !tc.check(response.GeneratedParts) || !generator.called || generator.input.CurrentDraft != (outreach.Draft{Subject: "draft subject", Opening: "draft opening", Value: "draft value", CTA: "draft cta"}) {
+			t.Fatalf("%s response=%+v err=%v input=%+v", tc.part, response, err, generator.input)
+		}
+		if tc.part == "all" && (response.Traceability.AnchorSignalID.String() != "00000000-0000-0000-0000-000000000801" || len(response.Traceability.SupportingSignalIDs) != 2 || !response.Traceability.CommunicationDNAUsed || !response.Traceability.AnalysisUsed) {
+			t.Fatalf("traceability=%+v", response.Traceability)
 		}
 	}
 }

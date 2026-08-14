@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -135,6 +136,69 @@ func TestSignalPulseHandlerReturnsResponse(t *testing.T) {
 	}
 	if response.Metrics["activeSignals"] != 2 || len(response.Accounts) != 1 || response.Accounts[0]["accountId"] != "00000000-0000-0000-0000-000000000101" || response.Accounts[0]["urgency"] != "hot" || response.Accounts[0]["activeSignalCount"] != float64(2) {
 		t.Fatalf("unexpected response: %s", recording.Body.String())
+	}
+}
+
+type outreachHandlerServiceStub struct {
+	calls     int
+	accountID uuid.UUID
+	request   models.OutreachGenerationRequest
+}
+
+func (s *outreachHandlerServiceStub) Generate(_ context.Context, accountID uuid.UUID, request models.OutreachGenerationRequest) (models.OutreachGenerationResponse, error) {
+	s.calls++
+	s.accountID = accountID
+	s.request = request
+	value := "generated"
+	return models.OutreachGenerationResponse{GeneratedParts: models.OutreachGeneratedParts{Subject: &value}}, nil
+}
+
+func TestOutreachHandlerRejectsInvalidRequestsBeforeService(t *testing.T) {
+	cases := []struct{ name, account, body string }{
+		{"malformed accountId", "bad", "{}"},
+		{"malformed JSON", "00000000-0000-0000-0000-000000000901", "{"},
+		{"invalid persona", "00000000-0000-0000-0000-000000000901", `{"persona":"other","anchorSignalId":"00000000-0000-0000-0000-000000000902","parts":["subject"],"currentDraft":{"subject":"","opening":"","value":"","cta":""}}`},
+		{"missing parts", "00000000-0000-0000-0000-000000000901", `{"persona":"sales","anchorSignalId":"00000000-0000-0000-0000-000000000902","currentDraft":{"subject":"","opening":"","value":"","cta":""}}`},
+		{"empty parts", "00000000-0000-0000-0000-000000000901", `{"persona":"sales","anchorSignalId":"00000000-0000-0000-0000-000000000902","parts":[],"currentDraft":{"subject":"","opening":"","value":"","cta":""}}`},
+		{"duplicate part", "00000000-0000-0000-0000-000000000901", `{"persona":"sales","anchorSignalId":"00000000-0000-0000-0000-000000000902","parts":["subject","subject"],"currentDraft":{"subject":"","opening":"","value":"","cta":""}}`},
+		{"unsupported part", "00000000-0000-0000-0000-000000000901", `{"persona":"sales","anchorSignalId":"00000000-0000-0000-0000-000000000902","parts":["body"],"currentDraft":{"subject":"","opening":"","value":"","cta":""}}`},
+		{"malformed anchorSignalId", "00000000-0000-0000-0000-000000000901", `{"persona":"sales","anchorSignalId":"bad","parts":["subject"],"currentDraft":{"subject":"","opening":"","value":"","cta":""}}`},
+		{"missing currentDraft", "00000000-0000-0000-0000-000000000901", `{"persona":"sales","anchorSignalId":"00000000-0000-0000-0000-000000000902","parts":["subject"]}`},
+		{"missing draft field", "00000000-0000-0000-0000-000000000901", `{"persona":"sales","anchorSignalId":"00000000-0000-0000-0000-000000000902","parts":["subject"],"currentDraft":{"subject":"","opening":"","value":""}}`},
+		{"non-string draft field", "00000000-0000-0000-0000-000000000901", `{"persona":"sales","anchorSignalId":"00000000-0000-0000-0000-000000000902","parts":["subject"],"currentDraft":{"subject":1,"opening":"","value":"","cta":""}}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			service := &outreachHandlerServiceStub{}
+			router := gin.New()
+			router.Use(middleware.ErrorHandler(log.Default()))
+			router.POST("/api/accounts/:accountId/outreach-email/generate", NewOutreachHandler(service).Generate)
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPost, "/api/accounts/"+tc.account+"/outreach-email/generate", strings.NewReader(tc.body))
+			req.Header.Set("Content-Type", "application/json")
+			router.ServeHTTP(rec, req)
+			if rec.Code != http.StatusBadRequest || service.calls != 0 {
+				t.Fatalf("status=%d calls=%d body=%s", rec.Code, service.calls, rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestOutreachHandlerPassesValidRequestToService(t *testing.T) {
+	service := &outreachHandlerServiceStub{}
+	router := gin.New()
+	router.Use(middleware.ErrorHandler(log.Default()))
+	router.POST("/api/accounts/:accountId/outreach-email/generate", NewOutreachHandler(service).Generate)
+	accountID := uuid.MustParse("00000000-0000-0000-0000-000000000901")
+	anchorID := uuid.MustParse("00000000-0000-0000-0000-000000000902")
+	draft := models.OutreachDraft{Subject: "s", Opening: "o", Value: "v", CTA: "c"}
+	body := strings.NewReader(`{"persona":"exec","anchorSignalId":"00000000-0000-0000-0000-000000000902","parts":["subject","cta"],"currentDraft":{"subject":"s","opening":"o","value":"v","cta":"c"}}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/accounts/"+accountID.String()+"/outreach-email/generate", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || service.calls != 1 || service.accountID != accountID || service.request.Persona != "exec" || service.request.AnchorSignalID != anchorID || !reflect.DeepEqual(service.request.Parts, []string{"subject", "cta"}) || service.request.CurrentDraft != draft {
+		t.Fatalf("request not preserved: status=%d calls=%d request=%+v", rec.Code, service.calls, service.request)
 	}
 }
 
