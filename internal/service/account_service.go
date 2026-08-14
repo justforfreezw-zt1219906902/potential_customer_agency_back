@@ -13,6 +13,7 @@ type AccountReader interface {
 	GetByID(ctx context.Context, companyProfileID, accountID uuid.UUID) (*models.AccountOverview, bool, error)
 	ListSignals(ctx context.Context, companyProfileID, accountID uuid.UUID) ([]models.Signal, bool, error)
 	GetCommunicationDNA(ctx context.Context, companyProfileID, accountID uuid.UUID) (*models.CommunicationDNA, bool, bool, error)
+	ListSignalPulseRows(ctx context.Context, companyProfileID uuid.UUID) ([]models.SignalPulseRow, error)
 }
 
 func (s *AccountService) GetCommunicationDNA(ctx context.Context, accountID uuid.UUID) (models.CommunicationDNAResponse, error) {

@@ -16,6 +16,7 @@ type AccountLister interface {
 	Get(ctx context.Context, accountID uuid.UUID) (models.AccountOverview, error)
 	ListSignals(ctx context.Context, accountID uuid.UUID) (models.AccountSignalsResponse, error)
 	GetCommunicationDNA(ctx context.Context, accountID uuid.UUID) (models.CommunicationDNAResponse, error)
+	SignalPulse(ctx context.Context) (models.SignalPulseResponse, error)
 }
 
 func (h *AccountHandler) GetCommunicationDNA(c *gin.Context) {
@@ -27,6 +28,15 @@ func (h *AccountHandler) GetCommunicationDNA(c *gin.Context) {
 	response, err := h.service.GetCommunicationDNA(c.Request.Context(), accountID)
 	if err != nil {
 		_ = c.Error(err)
+		return
+	}
+	c.JSON(http.StatusOK, response)
+}
+
+func (h *AccountHandler) SignalPulse(c *gin.Context) {
+	response, err := h.service.SignalPulse(c.Request.Context())
+	if err != nil {
+		_ = c.Error(errors.Internal("failed to load signal pulse", err))
 		return
 	}
 	c.JSON(http.StatusOK, response)

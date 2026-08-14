@@ -412,3 +412,26 @@ The list and detail read models intentionally differ:
 
 Future frontend/backend work must not infer new API behavior from UI fixtures.
 Contract changes must be explicitly agreed and documented.
+
+## Signal Pulse
+
+Portfolio-level read model for all Accounts in the server-scoped demo company.
+It has no request body or query parameters.
+
+```http
+GET /api/signal-pulse
+```
+
+The response contains `metrics` and `accounts`. Metrics are calculated from
+active Signals only: `activeSignals` is the total active count,
+`newThisWeek` includes non-null `signalDate` values from today minus six days
+through today (UTC), `hotAccounts` have at least two active high-strength
+Signals, and `goingCold` counts accounts with no active Signals or with all
+active Signals dated more than 56 days ago. An undated active Signal prevents
+age-based cold classification.
+
+Each account includes `urgency` (`hot`, `warm`, or `cold`), active counts,
+nullable analysis fields, and at most five active Signal previews. Preview
+ordering is `signalDate DESC NULLS LAST`, then `created_at DESC`, then ID.
+Account ordering is urgency, high active count, active count, latest active
+date, name, and ID. No Market Patterns are included in this phase.

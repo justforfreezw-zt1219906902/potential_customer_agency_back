@@ -15,6 +15,7 @@ B2B SaaS application.
 - PostgreSQL-backed Account Intelligence read APIs.
 - Account Discovery list, scoped Account Overview, and scoped Account Signals.
 - Latest persisted Communication DNA with traceable buying-signal sources.
+- Portfolio-level Signal Pulse read metrics and active Signal previews.
 - Server-side demo-company scoping and an explicit demo seed workflow.
 - PostgreSQL schema migrations through Liquibase.
 - Local Docker PostgreSQL and Railway startup support.

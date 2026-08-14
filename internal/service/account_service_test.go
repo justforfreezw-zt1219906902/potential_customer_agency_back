@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/justforfreezw-zt1219906902/potential_customer_agency_back/internal/errors"
@@ -20,6 +21,9 @@ func (accountReaderStub) ListSignals(context.Context, uuid.UUID, uuid.UUID) ([]m
 }
 func (accountReaderStub) GetCommunicationDNA(context.Context, uuid.UUID, uuid.UUID) (*models.CommunicationDNA, bool, bool, error) {
 	return nil, true, false, nil
+}
+func (accountReaderStub) ListSignalPulseRows(context.Context, uuid.UUID) ([]models.SignalPulseRow, error) {
+	return nil, nil
 }
 
 func TestAccountServiceListSignalsBuildsSummary(t *testing.T) {
@@ -53,6 +57,9 @@ func (s signalReaderStub) ListSignals(context.Context, uuid.UUID, uuid.UUID) ([]
 func (s signalReaderStub) GetCommunicationDNA(context.Context, uuid.UUID, uuid.UUID) (*models.CommunicationDNA, bool, bool, error) {
 	return nil, true, false, nil
 }
+func (s signalReaderStub) ListSignalPulseRows(context.Context, uuid.UUID) ([]models.SignalPulseRow, error) {
+	return nil, nil
+}
 
 func TestAccountServiceMissingDNAReturnsNull(t *testing.T) {
 	response, err := NewAccountService(accountReaderStub{}, uuid.New()).GetCommunicationDNA(context.Background(), uuid.New())
@@ -69,6 +76,33 @@ func TestDedupeSignalSourcesPreservesFirstURL(t *testing.T) {
 		t.Fatalf("unexpected sources: %+v", result)
 	}
 }
+
+func TestBuildSignalPulseRules(t *testing.T) {
+	today := time.Date(2026, 8, 14, 12, 0, 0, 0, time.UTC)
+	date := func(days int) *time.Time { value := today.AddDate(0, 0, days); return &value }
+	active := true
+	inactive := false
+	created := today
+	high, medium := "high", "medium"
+	typ, title := "Job Posting", "Hiring"
+	rows := []models.SignalPulseRow{
+		{AccountID: uuid.MustParse("00000000-0000-0000-0000-000000000101"), Name: "Hot", SignalID: ptrUUID("00000000-0000-0000-0000-000000002001"), SignalType: &typ, SignalTitle: &title, SignalStrength: &high, SignalDate: date(0), SignalCreatedAt: &created, IsActive: &active},
+		{AccountID: uuid.MustParse("00000000-0000-0000-0000-000000000101"), Name: "Hot", SignalID: ptrUUID("00000000-0000-0000-0000-000000002002"), SignalType: &typ, SignalTitle: &title, SignalStrength: &high, SignalDate: date(-6), SignalCreatedAt: &created, IsActive: &active},
+		{AccountID: uuid.MustParse("00000000-0000-0000-0000-000000000102"), Name: "Unknown Date", SignalID: ptrUUID("00000000-0000-0000-0000-000000002003"), SignalType: &typ, SignalTitle: &title, SignalStrength: &medium, SignalDate: nil, SignalCreatedAt: &created, IsActive: &active},
+		{AccountID: uuid.MustParse("00000000-0000-0000-0000-000000000103"), Name: "Cold", SignalID: ptrUUID("00000000-0000-0000-0000-000000002004"), SignalType: &typ, SignalTitle: &title, SignalStrength: &medium, SignalDate: date(-57), SignalCreatedAt: &created, IsActive: &active},
+		{AccountID: uuid.MustParse("00000000-0000-0000-0000-000000000104"), Name: "Empty", SignalID: nil, IsActive: nil},
+		{AccountID: uuid.MustParse("00000000-0000-0000-0000-000000000105"), Name: "Inactive", SignalID: ptrUUID("00000000-0000-0000-0000-000000002005"), SignalType: &typ, SignalTitle: &title, SignalStrength: &high, SignalDate: date(0), SignalCreatedAt: &created, IsActive: &inactive},
+	}
+	response := BuildSignalPulse(rows, today)
+	if response.Metrics.ActiveSignals != 4 || response.Metrics.NewThisWeek != 2 || response.Metrics.HotAccounts != 1 || response.Metrics.GoingCold != 3 {
+		t.Fatalf("unexpected metrics: %+v", response.Metrics)
+	}
+	if response.Accounts[0].Urgency != "hot" || response.Accounts[1].Urgency != "warm" || response.Accounts[2].Urgency != "cold" {
+		t.Fatalf("unexpected ordering: %+v", response.Accounts)
+	}
+}
+
+func ptrUUID(value string) *uuid.UUID { parsed := uuid.MustParse(value); return &parsed }
 
 func TestAccountServiceGetReturnsNotFoundForScopedMissingAccount(t *testing.T) {
 	service := NewAccountService(accountReaderStub{}, uuid.New())

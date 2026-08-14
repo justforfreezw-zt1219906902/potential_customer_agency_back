@@ -1,6 +1,7 @@
 package models
 
 import "github.com/google/uuid"
+import "time"
 
 type Account struct {
 	ID                uuid.UUID        `json:"id"`
@@ -154,6 +155,49 @@ type Signal struct {
 	IsActive       bool          `json:"isActive"`
 	ScoreEligible  bool          `json:"scoreEligible"`
 	Source         *SignalSource `json:"source"`
+}
+
+type SignalPulseResponse struct {
+	Metrics  SignalPulseMetrics   `json:"metrics"`
+	Accounts []SignalPulseAccount `json:"accounts"`
+}
+type SignalPulseMetrics struct {
+	ActiveSignals int `json:"activeSignals"`
+	NewThisWeek   int `json:"newThisWeek"`
+	HotAccounts   int `json:"hotAccounts"`
+	GoingCold     int `json:"goingCold"`
+}
+type SignalPulseAccount struct {
+	AccountID              uuid.UUID            `json:"accountId"`
+	Name                   string               `json:"name"`
+	Industry               *string              `json:"industry"`
+	Tier                   *string              `json:"tier"`
+	Urgency                string               `json:"urgency"`
+	ActiveSignalCount      int                  `json:"activeSignalCount"`
+	HighActiveSignalCount  int                  `json:"highActiveSignalCount"`
+	LatestActiveSignalDate *string              `json:"latestActiveSignalDate"`
+	NextBestAction         *string              `json:"nextBestAction"`
+	Signals                []SignalPulsePreview `json:"signals"`
+}
+type SignalPulsePreview struct {
+	ID         uuid.UUID `json:"id"`
+	Type       string    `json:"type"`
+	Title      string    `json:"title"`
+	Strength   string    `json:"strength"`
+	SignalDate *string   `json:"signalDate"`
+}
+
+type SignalPulseRow struct {
+	AccountID                               uuid.UUID
+	Name                                    string
+	Industry                                *string
+	Tier                                    *string
+	NextBestAction                          *string
+	SignalID                                *uuid.UUID
+	SignalType, SignalTitle, SignalStrength *string
+	SignalDate                              *time.Time
+	SignalCreatedAt                         *time.Time
+	IsActive                                *bool
 }
 
 type SignalSource struct {

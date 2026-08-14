@@ -33,6 +33,9 @@ func (s *accountHandlerTestService) GetCommunicationDNA(context.Context, uuid.UU
 	s.dnaCalls++
 	return models.CommunicationDNAResponse{}, nil
 }
+func (s *accountHandlerTestService) SignalPulse(context.Context) (models.SignalPulseResponse, error) {
+	return models.SignalPulseResponse{}, nil
+}
 
 func TestGetAccountRejectsMalformedUUIDBeforeServiceCall(t *testing.T) {
 	gin.SetMode(gin.TestMode)
