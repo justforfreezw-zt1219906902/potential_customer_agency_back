@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -258,5 +259,34 @@ func TestCompareDNAPortfolioCountsAccountsNotOccurrences(t *testing.T) {
 	}
 	if len(response.ProblemFraming) != 2 || response.ProblemFraming[1].Value != nil {
 		t.Fatalf("null framing not preserved: %+v", response.ProblemFraming)
+	}
+}
+
+type dnaPortfolioReaderStub struct {
+	accountReaderStub
+	rows []models.DNAPortfolioRow
+	err  error
+}
+
+func (s dnaPortfolioReaderStub) ListDNAPortfolioRows(context.Context, uuid.UUID, []uuid.UUID) ([]models.DNAPortfolioRow, error) {
+	return s.rows, s.err
+}
+
+func TestCompareDNAPortfolioServiceErrors(t *testing.T) {
+	ids := []uuid.UUID{uuid.MustParse("00000000-0000-0000-0000-000000000601"), uuid.MustParse("00000000-0000-0000-0000-000000000602")}
+	_, err := NewAccountService(dnaPortfolioReaderStub{rows: []models.DNAPortfolioRow{{AccountID: ids[0], DNA: &models.CommunicationDNA{}}}}, uuid.New()).CompareDNAPortfolio(context.Background(), ids)
+	appErr, ok := errors.AsAppError(err)
+	if !ok || appErr.Status != 404 || appErr.Message != "account not found" {
+		t.Fatalf("missing account error=%#v", err)
+	}
+	_, err = NewAccountService(dnaPortfolioReaderStub{rows: []models.DNAPortfolioRow{{AccountID: ids[0]}, {AccountID: ids[1], DNA: &models.CommunicationDNA{}}}}, uuid.New()).CompareDNAPortfolio(context.Background(), ids)
+	appErr, ok = errors.AsAppError(err)
+	if !ok || appErr.Status != 400 || appErr.Message != "selected account has no communication DNA" {
+		t.Fatalf("missing DNA error=%#v", err)
+	}
+	repositoryErr := fmt.Errorf("repository unavailable")
+	_, err = NewAccountService(dnaPortfolioReaderStub{err: repositoryErr}, uuid.New()).CompareDNAPortfolio(context.Background(), ids)
+	if err != repositoryErr {
+		t.Fatalf("repository error was not propagated: %v", err)
 	}
 }

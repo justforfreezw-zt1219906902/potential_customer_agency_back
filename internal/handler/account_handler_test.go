@@ -81,6 +81,33 @@ func TestDNAPortfolioHandlersReturnRepresentativeResponses(t *testing.T) {
 	}
 }
 
+func TestCompareDNAPortfolioRejectsInvalidRequests(t *testing.T) {
+	cases := []struct{ name, body string }{
+		{"malformed JSON", "{"}, {"missing accountIds", `{}`}, {"null accountIds", `{"accountIds":null}`}, {"empty accountIds", `{"accountIds":[]}`},
+		{"one UUID", `{"accountIds":["00000000-0000-0000-0000-000000000601"]}`},
+		{"invalid UUID", `{"accountIds":["bad","00000000-0000-0000-0000-000000000602"]}`},
+		{"duplicate UUID", `{"accountIds":["00000000-0000-0000-0000-000000000601","00000000-0000-0000-0000-000000000601"]}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			service := &accountHandlerTestService{}
+			router := gin.New()
+			router.Use(middleware.ErrorHandler(log.Default()))
+			router.POST("/api/dna-portfolio/compare", NewAccountHandler(service, log.Default()).CompareDNAPortfolio)
+			req := httptest.NewRequest(http.MethodPost, "/api/dna-portfolio/compare", strings.NewReader(tc.body))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+			}
+			if service.compareCalls != 0 {
+				t.Fatalf("service called %d times", service.compareCalls)
+			}
+		})
+	}
+}
+
 func TestSignalPulseHandlerReturnsResponse(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	service := &accountHandlerTestService{pulseResponse: models.SignalPulseResponse{

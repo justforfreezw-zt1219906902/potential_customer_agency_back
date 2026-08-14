@@ -212,44 +212,6 @@ CORS_ALLOWED_ORIGINS
 
 ## List Accounts
 
-## DNA Portfolio
-
-The DNA portfolio reads the latest persisted Communication DNA for the
-server-scoped demo company. Clients do not provide `companyProfileId`.
-Accounts without Communication DNA are excluded.
-
-```http
-GET /api/dna-portfolio
-```
-
-The response contains `summary` and `items`. Tier and industry summaries count
-only non-null persisted values. DNA scalar fields preserve persisted nulls;
-all array and map fields are returned as empty collections rather than null.
-Active signal counts and signal types use active signals only. Signal types are
-distinct and alphabetically sorted. Items are ordered by Focus Accounts, Tier
-1, Tier 2, Below ICP, then null tier, followed by name and account ID.
-
-```http
-POST /api/dna-portfolio/compare
-Content-Type: application/json
-```
-
-```json
-{"accountIds":["account-uuid-1","account-uuid-2"]}
-```
-
-At least two unique, valid UUIDs are required. Accounts must be in the
-server-side scope and must have Communication DNA. Missing or out-of-scope
-accounts return `404 account not found`; a scoped account without DNA returns
-`400 selected account has no communication DNA`. Malformed JSON, missing IDs,
-invalid UUIDs, duplicate IDs, or fewer than two IDs return `400`.
-
-Comparison is deterministic exact matching across selected accounts. It uses
-no AI, semantic similarity, fuzzy matching, or normalization. Duplicate values
-inside one account count once, and value collections sort by count descending
-then value ascending. Problem framing returns one entry per selected account,
-preserving null values.
-
 Returns the current demo company's target-account read model for Account
 Discovery. The company scope is server-side; clients cannot provide it.
 
@@ -291,6 +253,44 @@ resonance score descends and name is alphabetical.
 When `analysis` exists, only the `action` value from `next_best_action` is
 returned as `nextBestAction`. Malformed persisted analysis data produces the
 normal safe HTTP 500 response.
+
+## DNA Portfolio
+
+The DNA portfolio reads the latest persisted Communication DNA for the
+server-scoped demo company. Clients do not provide `companyProfileId`.
+Accounts without Communication DNA are excluded.
+
+```http
+GET /api/dna-portfolio
+```
+
+The response contains `summary` and `items`. Tier and industry summaries count
+only non-null persisted values. DNA scalar fields preserve persisted nulls;
+all array and map fields are returned as empty collections rather than null.
+Active signal counts and signal types use active signals only. Signal types are
+distinct and alphabetically sorted. Items are ordered by Focus Accounts, Tier
+1, Tier 2, Below ICP, then null tier, followed by name and account ID.
+
+```http
+POST /api/dna-portfolio/compare
+Content-Type: application/json
+```
+
+```json
+{"accountIds":["account-uuid-1","account-uuid-2"]}
+```
+
+At least two unique, valid UUIDs are required. Accounts must be in the
+server-side scope and must have Communication DNA. Missing or out-of-scope
+accounts return `404 account not found`; a scoped account without DNA returns
+`400 selected account has no communication DNA`. Malformed JSON, missing IDs,
+invalid UUIDs, duplicate IDs, or fewer than two IDs return `400`.
+
+Comparison is deterministic exact matching across selected accounts. It uses
+no AI, semantic similarity, fuzzy matching, or normalization. Duplicate values
+inside one account count once, and value collections sort by count descending
+then value ascending. Problem framing returns one entry per selected account,
+preserving null values.
 
 ## Account Overview
 
