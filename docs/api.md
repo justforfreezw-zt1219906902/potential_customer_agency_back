@@ -310,10 +310,10 @@ fields are outside this contract.
 
 The backend builds structured context from the scoped seller company, target
 Account, latest analysis, active Signals, and optional latest Communication DNA.
-The provider is intentionally unavailable while the provider boundary is
-pending, so generation returns safe `502` rather than fixture content.
-Transport selection is deferred behind a provider-neutral interface; HTTP API
-and MCP-backed implementations remain future options. No history is persisted.
+When configured, generation uses Google Gemini through the provider-neutral
+application boundary. Without `GEMINI_API_KEY`, or when Gemini is unavailable,
+the endpoint returns safe `502` rather than fixture content. No history is
+persisted and the endpoint never sends email.
 
 ## Account Overview
 

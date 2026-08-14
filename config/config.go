@@ -22,6 +22,8 @@ type Config struct {
 	PostgresPassword   string
 	PostgresSSLMode    string
 	DemoCompanyID      uuid.UUID
+	GeminiAPIKey       string
+	GeminiModel        string
 }
 
 func Load() Config {
@@ -45,6 +47,8 @@ func Load() Config {
 		PostgresPassword:   firstEnv("POSTGRES_PASSWORD", "PGPASSWORD"),
 		PostgresSSLMode:    getEnv("POSTGRES_SSLMODE", "disable"),
 		DemoCompanyID:      demoCompanyID,
+		GeminiAPIKey:       os.Getenv("GEMINI_API_KEY"),
+		GeminiModel:        getEnv("GEMINI_MODEL", "gemini-3.6-flash"),
 	}
 }
 

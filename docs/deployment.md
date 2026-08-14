@@ -56,6 +56,8 @@ the local Docker PostgreSQL container.
 | `POSTGRES_PORT` | Local Docker host port. |
 | `POSTGRES_SSLMODE` | Local/remote PostgreSQL SSL mode when included in the address. |
 | `DEMO_COMPANY_PROFILE_ID` | Required server-side UUID scope for the demo account list. |
+| `GEMINI_API_KEY` | Optional Google Gemini API key for outreach draft generation. |
+| `GEMINI_MODEL` | Gemini model name; defaults to `gemini-3.6-flash`. |
 
 Use placeholders only in `.env.example`; never commit actual tokens or
 passwords.

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -101,7 +102,7 @@ func TestOutreachServicePartialGenerationAndTraceability(t *testing.T) {
 	supporting := []outreach.Signal{{ID: "00000000-0000-0000-0000-000000000922", EvidenceStatus: "SOURCE_BACKED", Verified: true, ScoreEligible: true}, {ID: "00000000-0000-0000-0000-000000000923"}}
 	data := outreachContext(true)
 	data.SupportingSignals = supporting
-	data.CommunicationDNA = struct{}{}
+	data.CommunicationDNA = json.RawMessage(`{"tone":{"primary":"technical"}}`)
 	tier := "Tier 1"
 	data.LatestAnalysis = &outreach.Analysis{Tier: &tier}
 	cases := []struct {

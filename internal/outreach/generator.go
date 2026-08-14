@@ -32,15 +32,15 @@ type Signal struct {
 }
 type SignalSource struct{ Name, Type, URL string }
 type Input struct {
-	RequestedParts    []Part
-	CurrentDraft      Draft
-	Persona           string
-	SellerCompany     SellerCompany
-	TargetAccount     TargetAccount
-	LatestAnalysis    *Analysis
-	AnchorSignal      Signal
-	SupportingSignals []Signal
-	CommunicationDNA  any
+	RequestedParts    []Part          `json:"requestedParts"`
+	CurrentDraft      Draft           `json:"currentDraft"`
+	Persona           string          `json:"persona"`
+	SellerCompany     SellerCompany   `json:"sellerCompany"`
+	TargetAccount     TargetAccount   `json:"targetAccount"`
+	LatestAnalysis    *Analysis       `json:"latestAnalysis,omitempty"`
+	AnchorSignal      Signal          `json:"anchorSignal"`
+	SupportingSignals []Signal        `json:"supportingSignals"`
+	CommunicationDNA  json.RawMessage `json:"communicationDNA,omitempty"`
 }
 type ContextData struct {
 	SellerCompany                           SellerCompany
@@ -48,7 +48,7 @@ type ContextData struct {
 	LatestAnalysis                          *Analysis
 	AnchorSignal                            Signal
 	SupportingSignals                       []Signal
-	CommunicationDNA                        any
+	CommunicationDNA                        json.RawMessage
 	AccountFound, AnchorFound, AnchorActive bool
 }
 type Output struct{ GeneratedParts Draft }

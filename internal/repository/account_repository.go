@@ -362,7 +362,7 @@ func (r *AccountRepository) LoadOutreachContext(ctx context.Context, companyProf
 		return result, err
 	}
 	if dnaFound {
-		result.CommunicationDNA = dna
+		result.CommunicationDNA, _ = json.Marshal(dna)
 	}
 	const sellerQuery = `SELECT name,tagline,website,description,products,value_propositions,buyer_personas,communication_dna FROM company_profile WHERE id=$1`
 	var name, tagline, website, description *string

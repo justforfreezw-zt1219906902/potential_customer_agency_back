@@ -49,7 +49,16 @@ func main() {
 	accountRepository := repository.NewAccountRepository(dbPool)
 	accountService := service.NewAccountService(accountRepository, cfg.DemoCompanyID)
 	accountHandler := handler.NewAccountHandler(accountService, logger)
-	outreachService := service.NewOutreachService(accountRepository, cfg.DemoCompanyID, outreach.UnavailableGenerator{})
+	var outreachGenerator outreach.Generator = outreach.UnavailableGenerator{}
+	if cfg.GeminiAPIKey != "" {
+		geminiGenerator, err := outreach.NewGeminiOutreachGenerator(context.Background(), cfg.GeminiAPIKey, cfg.GeminiModel)
+		if err != nil {
+			logger.Printf("Gemini provider unavailable: %v", err)
+		} else {
+			outreachGenerator = geminiGenerator
+		}
+	}
+	outreachService := service.NewOutreachService(accountRepository, cfg.DemoCompanyID, outreachGenerator)
 	outreachHandler := handler.NewOutreachHandler(outreachService)
 
 	router := gin.New()
