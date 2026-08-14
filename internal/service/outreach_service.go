@@ -29,7 +29,7 @@ func (s *OutreachService) Generate(ctx context.Context, accountID uuid.UUID, req
 	if !data.AccountFound {
 		return models.OutreachGenerationResponse{}, apperrors.NotFound("account not found", nil)
 	}
-	if !data.AnchorFound {
+	if !data.AnchorFound || !data.AnchorActive {
 		return models.OutreachGenerationResponse{}, apperrors.BadRequest("anchor signal must belong to account and be active", nil)
 	}
 	parts := make([]outreach.Part, len(request.Parts))

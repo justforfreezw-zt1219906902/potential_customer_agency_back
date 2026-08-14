@@ -350,11 +350,9 @@ func (r *AccountRepository) LoadOutreachContext(ctx context.Context, companyProf
 			item.Source = &outreach.SignalSource{URL: signal.Source.URL, Name: valueOrEmpty(signal.Source.Name), Type: valueOrEmpty(signal.Source.Type)}
 		}
 		if signal.ID == anchorSignalID {
-			if !signal.IsActive {
-				return result, fmt.Errorf("anchor signal is inactive")
-			}
 			result.AnchorSignal = item
 			result.AnchorFound = true
+			result.AnchorActive = signal.IsActive
 		} else if signal.IsActive {
 			result.SupportingSignals = append(result.SupportingSignals, item)
 		}
@@ -372,7 +370,10 @@ func (r *AccountRepository) LoadOutreachContext(ctx context.Context, companyProf
 	if err := r.pool.QueryRow(ctx, sellerQuery, companyProfileID).Scan(&name, &tagline, &website, &description, &products, &propositions, &personas, &sellerDNA); err != nil {
 		return result, fmt.Errorf("query seller company: %w", err)
 	}
-	result.SellerCompany = outreach.SellerCompany{Name: valueOrEmpty(name), Tagline: valueOrEmpty(tagline), Website: valueOrEmpty(website), Description: valueOrEmpty(description), Products: jsonStrings(products), ValuePropositions: jsonStrings(propositions), BuyerPersonas: jsonStrings(personas), CommunicationDNA: json.RawMessage(sellerDNA)}
+	if !validJSON(products) || !validJSON(propositions) || !validJSON(personas) || !validJSON(sellerDNA) {
+		return result, fmt.Errorf("invalid seller company JSON context")
+	}
+	result.SellerCompany = outreach.SellerCompany{Name: valueOrEmpty(name), Tagline: valueOrEmpty(tagline), Website: valueOrEmpty(website), Description: valueOrEmpty(description), Products: json.RawMessage(products), ValuePropositions: json.RawMessage(propositions), BuyerPersonas: json.RawMessage(personas), CommunicationDNA: json.RawMessage(sellerDNA)}
 	return result, nil
 }
 func valueOrEmpty(value *string) string {
@@ -381,12 +382,9 @@ func valueOrEmpty(value *string) string {
 	}
 	return *value
 }
-func jsonStrings(raw []byte) []string {
-	var values []string
-	if len(raw) > 0 && json.Unmarshal(raw, &values) == nil && values != nil {
-		return values
-	}
-	return []string{}
+func validJSON(raw []byte) bool {
+	var value any
+	return len(raw) > 0 && json.Unmarshal(raw, &value) == nil
 }
 
 func (r *AccountRepository) ListDNAPortfolioRows(ctx context.Context, companyProfileID uuid.UUID, accountIDs []uuid.UUID) ([]models.DNAPortfolioRow, error) {

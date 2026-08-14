@@ -1,6 +1,9 @@
 package outreach
 
-import "context"
+import (
+	"context"
+	"encoding/json"
+)
 
 type Part string
 
@@ -14,8 +17,8 @@ const (
 type Draft struct{ Subject, Opening, Value, CTA string }
 type SellerCompany struct {
 	Name, Tagline, Website, Description        string
-	Products, ValuePropositions, BuyerPersonas []string
-	CommunicationDNA                           any
+	Products, ValuePropositions, BuyerPersonas json.RawMessage
+	CommunicationDNA                           json.RawMessage
 }
 type TargetAccount struct {
 	ID                                   string
@@ -40,13 +43,13 @@ type Input struct {
 	CommunicationDNA  any
 }
 type ContextData struct {
-	SellerCompany             SellerCompany
-	TargetAccount             TargetAccount
-	LatestAnalysis            *Analysis
-	AnchorSignal              Signal
-	SupportingSignals         []Signal
-	CommunicationDNA          any
-	AccountFound, AnchorFound bool
+	SellerCompany                           SellerCompany
+	TargetAccount                           TargetAccount
+	LatestAnalysis                          *Analysis
+	AnchorSignal                            Signal
+	SupportingSignals                       []Signal
+	CommunicationDNA                        any
+	AccountFound, AnchorFound, AnchorActive bool
 }
 type Output struct{ GeneratedParts Draft }
 
