@@ -1,0 +1,40 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-correct-sr1-signal-columns
+      author: codex
+      dbms: postgresql
+      preConditions:
+        - sqlCheck:
+            expectedResult: "0"
+            sql: |
+              SELECT COUNT(*)
+              FROM signal
+              WHERE interpretation_status IS NOT NULL
+                AND interpretation_status NOT IN (
+                  'SOURCE_BACKED',
+                  'DERIVED',
+                  'INSUFFICIENT_DATA'
+                )
+      changes:
+        - sql:
+            splitStatements: true
+            stripComments: true
+            sql: |
+              ALTER TABLE signal
+                  ALTER COLUMN found_via TYPE TEXT
+                      USING found_via::text;
+
+              ALTER TABLE signal
+                  ALTER COLUMN observed_live_at TYPE DATE
+                      USING (observed_live_at AT TIME ZONE 'UTC')::date;
+
+              ALTER TABLE signal
+                  ADD CONSTRAINT chk_signal_interpretation_status
+                  CHECK (
+                      interpretation_status IS NULL
+                      OR interpretation_status IN (
+                          'SOURCE_BACKED',
+                          'DERIVED',
+                          'INSUFFICIENT_DATA'
+                      )
+                  );

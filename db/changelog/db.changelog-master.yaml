@@ -5,3 +5,7 @@ databaseChangeLog:
       file: db/changelog/changes/002-update-leads-for-short-form.yaml
   - include:
       file: db/changelog/changes/003-create-abm-intelligence-schema.yaml
+  - include:
+      file: db/changelog/changes/004-reconcile-sr1-schema.yaml
+  - include:
+      file: db/changelog/changes/005-correct-sr1-signal-columns.yaml

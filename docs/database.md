@@ -23,6 +23,13 @@ The master changelog currently includes:
 - `001-create-leads-table.yaml`
 - `002-update-leads-for-short-form.yaml`
 - `003-create-abm-intelligence-schema.yaml`
+- `004-reconcile-sr1-schema.yaml`
+
+Migration `004` adds nullable Signal evidence/interpretation fields, enforces
+non-negative target-account revenue, defaults new ICP profiles to inactive,
+and enables `gen_random_uuid()` defaults for entity IDs except
+`company_profile.id`. Existing rows and UUIDs are unchanged. The migration
+halts when any existing target account has negative `revenue_m`.
 
 See [the ABM schema guide](ABM_Intelligence_Database_Schema_Guide.md) for
 entity meaning, field semantics, relationships, and value rules. This file

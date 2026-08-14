@@ -1,0 +1,48 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-reconcile-sr1-schema
+      author: codex
+      dbms: postgresql
+      preConditions:
+        - sqlCheck:
+            expectedResult: "0"
+            sql: SELECT COUNT(*) FROM target_account WHERE revenue_m < 0
+      changes:
+        - sql:
+            splitStatements: true
+            stripComments: true
+            sql: |
+              CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+              ALTER TABLE signal
+                  ADD COLUMN quote TEXT,
+                  ADD COLUMN interpretation TEXT,
+                  ADD COLUMN interpretation_status VARCHAR(30),
+                  ADD COLUMN user_interpretation TEXT,
+                  ADD COLUMN coverage TEXT,
+                  ADD COLUMN found_via VARCHAR(100),
+                  ADD COLUMN observed_live_at TIMESTAMPTZ;
+
+              ALTER TABLE target_account
+                  ADD CONSTRAINT chk_target_account_revenue_m_nonnegative
+                  CHECK (revenue_m IS NULL OR revenue_m >= 0);
+
+              ALTER TABLE icp_profile
+                  ALTER COLUMN is_active SET DEFAULT false;
+
+              ALTER TABLE target_account
+                  ALTER COLUMN id SET DEFAULT gen_random_uuid();
+              ALTER TABLE icp_profile
+                  ALTER COLUMN id SET DEFAULT gen_random_uuid();
+              ALTER TABLE source_document
+                  ALTER COLUMN id SET DEFAULT gen_random_uuid();
+              ALTER TABLE ai_run
+                  ALTER COLUMN id SET DEFAULT gen_random_uuid();
+              ALTER TABLE signal
+                  ALTER COLUMN id SET DEFAULT gen_random_uuid();
+              ALTER TABLE account_analysis
+                  ALTER COLUMN id SET DEFAULT gen_random_uuid();
+              ALTER TABLE communication_dna
+                  ALTER COLUMN id SET DEFAULT gen_random_uuid();
+              ALTER TABLE generated_asset
+                  ALTER COLUMN id SET DEFAULT gen_random_uuid();

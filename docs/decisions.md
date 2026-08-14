@@ -68,3 +68,16 @@ Decision: Demonstration rows are created only by the explicit seed script.
 Reason: Schema history and optional development data have different lifecycles.
 
 Impact: Liquibase and Railway startup never seed demo records automatically.
+
+## DEC-007 — Mixed UUID ownership
+
+Status: Accepted
+
+Decision: `company_profile.id` remains explicitly assigned, while other ABM
+entity IDs default to PostgreSQL `gen_random_uuid()` when callers omit them.
+
+Reason: Company profiles retain explicit identity ownership while operational
+entities can use safe database-generated UUIDs.
+
+Impact: Future migrations must preserve this distinction and must not replace
+existing UUID values.
