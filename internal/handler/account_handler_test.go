@@ -2,7 +2,9 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"log"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -16,6 +18,8 @@ type accountHandlerTestService struct {
 	getCalls         int
 	listSignalsCalls int
 	dnaCalls         int
+	pulseCalls       int
+	pulseResponse    models.SignalPulseResponse
 }
 
 func (s *accountHandlerTestService) List(context.Context) (models.AccountListResponse, error) {
@@ -33,8 +37,40 @@ func (s *accountHandlerTestService) GetCommunicationDNA(context.Context, uuid.UU
 	s.dnaCalls++
 	return models.CommunicationDNAResponse{}, nil
 }
+
 func (s *accountHandlerTestService) SignalPulse(context.Context) (models.SignalPulseResponse, error) {
-	return models.SignalPulseResponse{}, nil
+	s.pulseCalls++
+	return s.pulseResponse, nil
+}
+
+func TestSignalPulseHandlerReturnsResponse(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service := &accountHandlerTestService{pulseResponse: models.SignalPulseResponse{
+		Metrics:  models.SignalPulseMetrics{ActiveSignals: 2},
+		Accounts: []models.SignalPulseAccount{{AccountID: uuid.MustParse("00000000-0000-0000-0000-000000000101"), Name: "Focus Account", Urgency: "hot", ActiveSignalCount: 2}},
+	}}
+	router := gin.New()
+	router.Use(middleware.ErrorHandler(log.Default()))
+	router.GET("/api/signal-pulse", NewAccountHandler(service, log.Default()).SignalPulse)
+
+	recording := httptest.NewRecorder()
+	router.ServeHTTP(recording, httptest.NewRequest(http.MethodGet, "/api/signal-pulse", nil))
+	if recording.Code != http.StatusOK {
+		t.Fatalf("status=%d, want 200", recording.Code)
+	}
+	if service.pulseCalls != 1 {
+		t.Fatalf("pulseCalls=%d, want 1", service.pulseCalls)
+	}
+	var response struct {
+		Metrics  map[string]int   `json:"metrics"`
+		Accounts []map[string]any `json:"accounts"`
+	}
+	if err := json.Unmarshal(recording.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if response.Metrics["activeSignals"] != 2 || len(response.Accounts) != 1 || response.Accounts[0]["accountId"] != "00000000-0000-0000-0000-000000000101" || response.Accounts[0]["urgency"] != "hot" || response.Accounts[0]["activeSignalCount"] != float64(2) {
+		t.Fatalf("unexpected response: %s", recording.Body.String())
+	}
 }
 
 func TestGetAccountRejectsMalformedUUIDBeforeServiceCall(t *testing.T) {

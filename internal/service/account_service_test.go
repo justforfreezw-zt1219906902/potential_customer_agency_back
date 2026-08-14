@@ -102,6 +102,109 @@ func TestBuildSignalPulseRules(t *testing.T) {
 	}
 }
 
+func TestBuildSignalPulseDateBoundariesAndStrengthCounts(t *testing.T) {
+	today := time.Date(2026, 8, 14, 12, 0, 0, 0, time.UTC)
+	rows := []models.SignalPulseRow{
+		pulseRow("00000000-0000-0000-0000-000000000201", "Boundary", "medium", today.AddDate(0, 0, -7), true),
+		pulseRow("00000000-0000-0000-0000-000000000201", "Boundary", "low", today.AddDate(0, 0, 1), true),
+		pulseRow("00000000-0000-0000-0000-000000000202", "Unknown date", "medium", today.AddDate(0, 0, -57), true),
+		pulseRow("00000000-0000-0000-0000-000000000202", "Unknown date", "low", time.Time{}, true),
+		pulseRow("00000000-0000-0000-0000-000000000203", "Inactive", "high", today, false),
+	}
+	response := BuildSignalPulse(rows, today)
+	if response.Metrics.NewThisWeek != 0 {
+		t.Fatalf("boundary/future signals counted as new: %+v", response.Metrics)
+	}
+	if response.Metrics.ActiveSignals != 4 {
+		t.Fatalf("inactive signal counted: %+v", response.Metrics)
+	}
+	for _, account := range response.Accounts {
+		if account.Name == "Unknown date" && account.Urgency != "warm" {
+			t.Fatalf("undated active signal incorrectly cold: %+v", account)
+		}
+	}
+	for _, account := range response.Accounts {
+		if account.Name == "Boundary" && account.HighActiveSignalCount != 0 {
+			t.Fatalf("medium/low signal increased high count: %+v", account)
+		}
+	}
+}
+
+func TestBuildSignalPulseLimitsPreviewsAndKeepsAllActiveCount(t *testing.T) {
+	today := time.Date(2026, 8, 14, 12, 0, 0, 0, time.UTC)
+	rows := make([]models.SignalPulseRow, 0, 6)
+	for i := 0; i < 6; i++ {
+		rows = append(rows, pulseRow("00000000-0000-0000-0000-000000000204", "Many Signals", "medium", today.AddDate(0, 0, -i), true))
+	}
+	response := BuildSignalPulse(rows, today)
+	if len(response.Accounts) != 1 || len(response.Accounts[0].Signals) != 5 || response.Accounts[0].ActiveSignalCount != 6 {
+		t.Fatalf("unexpected preview/count: %+v", response.Accounts)
+	}
+}
+
+func TestBuildSignalPulseZeroRowsReturnsEmptyArrayAndZeroMetrics(t *testing.T) {
+	response := BuildSignalPulse(nil, time.Date(2026, 8, 14, 0, 0, 0, 0, time.UTC))
+	if len(response.Accounts) != 0 || response.Accounts == nil || response.Metrics != (models.SignalPulseMetrics{}) {
+		t.Fatalf("unexpected empty response: %+v", response)
+	}
+}
+
+func TestBuildSignalPulseIncludesAccountWithoutAnalysis(t *testing.T) {
+	accountID := uuid.MustParse("00000000-0000-0000-0000-000000000299")
+	response := BuildSignalPulse([]models.SignalPulseRow{{AccountID: accountID, Name: "Unanalyzed"}}, time.Date(2026, 8, 14, 0, 0, 0, 0, time.UTC))
+	if len(response.Accounts) != 1 || response.Accounts[0].Tier != nil || response.Accounts[0].NextBestAction != nil {
+		t.Fatalf("unexpected unanalyzed account: %+v", response.Accounts)
+	}
+}
+
+func TestBuildSignalPulseDeterministicTieBreakers(t *testing.T) {
+	today := time.Date(2026, 8, 14, 0, 0, 0, 0, time.UTC)
+	rows := []models.SignalPulseRow{
+		pulseRow("00000000-0000-0000-0000-000000000301", "Warm More Active", "medium", today, true),
+		pulseRow("00000000-0000-0000-0000-000000000301", "Warm More Active", "low", today.AddDate(0, 0, -1), true),
+		pulseRow("00000000-0000-0000-0000-000000000302", "Warm One", "medium", today, true),
+		pulseRow("00000000-0000-0000-0000-000000000303", "Same Date Zulu", "medium", today, true),
+		pulseRow("00000000-0000-0000-0000-000000000304", "Same Date Alpha", "medium", today, true),
+		pulseRow("00000000-0000-0000-0000-000000000305", "Cold", "medium", today.AddDate(0, 0, -57), true),
+	}
+	high := "high"
+	rows = append(rows, pulseRow("00000000-0000-0000-0000-000000000306", "Hot", high, today, true), pulseRow("00000000-0000-0000-0000-000000000306", "Hot", high, today.AddDate(0, 0, -1), true))
+	response := BuildSignalPulse(rows, today)
+	order := make([]string, len(response.Accounts))
+	for i, account := range response.Accounts {
+		order[i] = account.Name
+	}
+	expected := []string{"Hot", "Warm More Active", "Same Date Alpha", "Same Date Zulu", "Warm One", "Cold"}
+	for i := range expected {
+		if order[i] != expected[i] {
+			t.Fatalf("unexpected order: %v", order)
+		}
+	}
+}
+
+func TestBuildSignalPulseUsesLatestActiveDateAsTieBreaker(t *testing.T) {
+	today := time.Date(2026, 8, 14, 0, 0, 0, 0, time.UTC)
+	rows := []models.SignalPulseRow{
+		pulseRow("00000000-0000-0000-0000-000000000307", "Warm Older", "medium", today.AddDate(0, 0, -1), true),
+		pulseRow("00000000-0000-0000-0000-000000000308", "Warm Newer", "medium", today, true),
+	}
+	response := BuildSignalPulse(rows, today)
+	if len(response.Accounts) != 2 || response.Accounts[0].Name != "Warm Newer" || response.Accounts[1].Name != "Warm Older" {
+		t.Fatalf("latest active date tie-breaker failed: %+v", response.Accounts)
+	}
+}
+
+func pulseRow(accountID, name, strength string, date time.Time, active bool) models.SignalPulseRow {
+	id := uuid.New()
+	typ, title := "Job Posting", "Signal"
+	created := time.Date(2026, 8, 14, 0, 0, 0, 0, time.UTC)
+	var signalDate *time.Time
+	if !date.IsZero() {
+		signalDate = &date
+	}
+	return models.SignalPulseRow{AccountID: uuid.MustParse(accountID), Name: name, SignalID: &id, SignalType: &typ, SignalTitle: &title, SignalStrength: &strength, SignalDate: signalDate, SignalCreatedAt: &created, IsActive: &active}
+}
+
 func ptrUUID(value string) *uuid.UUID { parsed := uuid.MustParse(value); return &parsed }
 
 func TestAccountServiceGetReturnsNotFoundForScopedMissingAccount(t *testing.T) {
