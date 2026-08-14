@@ -5,7 +5,7 @@ import (
 	"github.com/justforfreezw-zt1219906902/potential_customer_agency_back/internal/handler"
 )
 
-func Register(router *gin.Engine, leadHandler *handler.LeadHandler, accountHandler *handler.AccountHandler) {
+func Register(router *gin.Engine, leadHandler *handler.LeadHandler, accountHandler *handler.AccountHandler, outreachHandler *handler.OutreachHandler) {
 	api := router.Group("/api")
 	{
 		api.POST("/lead", leadHandler.CreateLead)
@@ -16,5 +16,6 @@ func Register(router *gin.Engine, leadHandler *handler.LeadHandler, accountHandl
 		api.GET("/signal-pulse", accountHandler.SignalPulse)
 		api.GET("/dna-portfolio", accountHandler.ListDNAPortfolio)
 		api.POST("/dna-portfolio/compare", accountHandler.CompareDNAPortfolio)
+		api.POST("/accounts/:accountId/outreach-email/generate", outreachHandler.Generate)
 	}
 }

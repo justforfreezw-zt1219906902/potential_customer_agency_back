@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	apperrors "github.com/justforfreezw-zt1219906902/potential_customer_agency_back/internal/errors"
 	"github.com/justforfreezw-zt1219906902/potential_customer_agency_back/internal/models"
+	"github.com/justforfreezw-zt1219906902/potential_customer_agency_back/internal/outreach"
 )
 
 type AccountReader interface {
@@ -15,6 +16,7 @@ type AccountReader interface {
 	GetCommunicationDNA(ctx context.Context, companyProfileID, accountID uuid.UUID) (*models.CommunicationDNA, bool, bool, error)
 	ListSignalPulseRows(ctx context.Context, companyProfileID uuid.UUID) ([]models.SignalPulseRow, error)
 	ListDNAPortfolioRows(ctx context.Context, companyProfileID uuid.UUID, accountIDs []uuid.UUID) ([]models.DNAPortfolioRow, error)
+	LoadOutreachContext(ctx context.Context, companyProfileID, accountID, anchorSignalID uuid.UUID) (outreach.ContextData, error)
 }
 
 func (s *AccountService) ListDNAPortfolio(ctx context.Context) (models.DNAPortfolioResponse, error) {

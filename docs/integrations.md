@@ -38,6 +38,16 @@ sandbox testing, or a sender on a verified domain in production.
 If Resend fails, the error is logged and the API still returns HTTP 200 because
 the HubSpot operation already succeeded.
 
+## Outreach Generation Boundary
+
+The Content Studio outreach-email generation application contract is provider
+neutral. A small internal generator interface receives structured persisted
+seller, account, signal, analysis, and optional Communication DNA context.
+The concrete external provider is pending; possible future transports include
+an HTTP API or MCP-backed service. No provider credentials or transport client
+is configured yet, and generation currently returns a safe unavailable-provider
+response rather than fixture content.
+
 ## Future Integrations
 
 No other external integration is currently implemented.

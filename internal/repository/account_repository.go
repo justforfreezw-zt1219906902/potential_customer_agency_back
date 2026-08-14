@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/justforfreezw-zt1219906902/potential_customer_agency_back/internal/models"
+	"github.com/justforfreezw-zt1219906902/potential_customer_agency_back/internal/outreach"
 )
 
 type AccountRepository struct {
@@ -319,6 +320,73 @@ func decodeStringArray(name string, raw []byte, out *[]string) error {
 
 func NewAccountRepository(pool *pgxpool.Pool) *AccountRepository {
 	return &AccountRepository{pool: pool}
+}
+
+func (r *AccountRepository) LoadOutreachContext(ctx context.Context, companyProfileID, accountID, anchorSignalID uuid.UUID) (outreach.ContextData, error) {
+	var result outreach.ContextData
+	account, found, err := r.GetByID(ctx, companyProfileID, accountID)
+	if err != nil {
+		return result, err
+	}
+	result.AccountFound = found
+	if !found {
+		return result, nil
+	}
+	result.TargetAccount = outreach.TargetAccount{ID: account.ID.String(), Name: account.Name, Industry: valueOrEmpty(account.Industry), Website: account.WebURL, Description: valueOrEmpty(account.Description)}
+	if account.Analysis != nil {
+		var action *string
+		if account.Analysis.NextBestAction != nil {
+			action = &account.Analysis.NextBestAction.Action
+		}
+		result.LatestAnalysis = &outreach.Analysis{Tier: &account.Analysis.Tier, NextBestAction: action}
+	}
+	signals, _, err := r.ListSignals(ctx, companyProfileID, accountID)
+	if err != nil {
+		return result, err
+	}
+	for _, signal := range signals {
+		item := outreach.Signal{ID: signal.ID.String(), Type: signal.Type, Title: signal.Title, Body: valueOrEmpty(signal.Body), Strength: signal.Strength, Relevance: valueOrEmpty(signal.Relevance), SignalDate: valueOrEmpty(signal.SignalDate), EvidenceStatus: signal.EvidenceStatus, Verified: signal.Verified, ScoreEligible: signal.ScoreEligible}
+		if signal.Source != nil {
+			item.Source = &outreach.SignalSource{URL: signal.Source.URL, Name: valueOrEmpty(signal.Source.Name), Type: valueOrEmpty(signal.Source.Type)}
+		}
+		if signal.ID == anchorSignalID {
+			if !signal.IsActive {
+				return result, fmt.Errorf("anchor signal is inactive")
+			}
+			result.AnchorSignal = item
+			result.AnchorFound = true
+		} else if signal.IsActive {
+			result.SupportingSignals = append(result.SupportingSignals, item)
+		}
+	}
+	dna, _, dnaFound, err := r.GetCommunicationDNA(ctx, companyProfileID, accountID)
+	if err != nil {
+		return result, err
+	}
+	if dnaFound {
+		result.CommunicationDNA = dna
+	}
+	const sellerQuery = `SELECT name,tagline,website,description,products,value_propositions,buyer_personas,communication_dna FROM company_profile WHERE id=$1`
+	var name, tagline, website, description *string
+	var products, propositions, personas, sellerDNA []byte
+	if err := r.pool.QueryRow(ctx, sellerQuery, companyProfileID).Scan(&name, &tagline, &website, &description, &products, &propositions, &personas, &sellerDNA); err != nil {
+		return result, fmt.Errorf("query seller company: %w", err)
+	}
+	result.SellerCompany = outreach.SellerCompany{Name: valueOrEmpty(name), Tagline: valueOrEmpty(tagline), Website: valueOrEmpty(website), Description: valueOrEmpty(description), Products: jsonStrings(products), ValuePropositions: jsonStrings(propositions), BuyerPersonas: jsonStrings(personas), CommunicationDNA: json.RawMessage(sellerDNA)}
+	return result, nil
+}
+func valueOrEmpty(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+func jsonStrings(raw []byte) []string {
+	var values []string
+	if len(raw) > 0 && json.Unmarshal(raw, &values) == nil && values != nil {
+		return values
+	}
+	return []string{}
 }
 
 func (r *AccountRepository) ListDNAPortfolioRows(ctx context.Context, companyProfileID uuid.UUID, accountIDs []uuid.UUID) ([]models.DNAPortfolioRow, error) {

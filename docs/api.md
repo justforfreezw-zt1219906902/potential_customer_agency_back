@@ -292,6 +292,29 @@ inside one account count once, and value collections sort by count descending
 then value ascending. Problem framing returns one entry per selected account,
 preserving null values.
 
+## Outreach Email Generation
+
+Generates draft content only for a scoped Account. It does not send, schedule,
+persist, or contact HubSpot/Resend.
+
+```http
+POST /api/accounts/{accountId}/outreach-email/generate
+Content-Type: application/json
+```
+
+The request contains `persona` (`marketing`, `sales`, or `exec`), a real
+`anchorSignalId`, unique requested parts from `subject`, `opening`, `value`,
+and `cta`, plus a `currentDraft` containing all four string fields. Only the
+requested generated parts are returned; recipient, greeting, and signature
+fields are outside this contract.
+
+The backend builds structured context from the scoped seller company, target
+Account, latest analysis, active Signals, and optional latest Communication DNA.
+The provider is intentionally unavailable while the provider boundary is
+pending, so generation returns safe `502` rather than fixture content.
+Transport selection is deferred behind a provider-neutral interface; HTTP API
+and MCP-backed implementations remain future options. No history is persisted.
+
 ## Account Overview
 
 Returns one scoped target-account overview, including stable account facts and

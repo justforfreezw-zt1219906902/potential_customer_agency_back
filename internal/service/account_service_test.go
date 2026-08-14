@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/justforfreezw-zt1219906902/potential_customer_agency_back/internal/errors"
 	"github.com/justforfreezw-zt1219906902/potential_customer_agency_back/internal/models"
+	"github.com/justforfreezw-zt1219906902/potential_customer_agency_back/internal/outreach"
 )
 
 type accountReaderStub struct{}
@@ -29,6 +30,9 @@ func (accountReaderStub) ListSignalPulseRows(context.Context, uuid.UUID) ([]mode
 }
 func (accountReaderStub) ListDNAPortfolioRows(context.Context, uuid.UUID, []uuid.UUID) ([]models.DNAPortfolioRow, error) {
 	return nil, nil
+}
+func (accountReaderStub) LoadOutreachContext(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) (outreach.ContextData, error) {
+	return outreach.ContextData{}, nil
 }
 
 func TestAccountServiceListSignalsBuildsSummary(t *testing.T) {
@@ -67,6 +71,9 @@ func (s signalReaderStub) ListSignalPulseRows(context.Context, uuid.UUID) ([]mod
 }
 func (s signalReaderStub) ListDNAPortfolioRows(context.Context, uuid.UUID, []uuid.UUID) ([]models.DNAPortfolioRow, error) {
 	return nil, nil
+}
+func (s signalReaderStub) LoadOutreachContext(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) (outreach.ContextData, error) {
+	return outreach.ContextData{}, nil
 }
 
 func TestAccountServiceMissingDNAReturnsNull(t *testing.T) {
