@@ -97,3 +97,23 @@ represented as source fact and keeps provenance explicit.
 Impact: Future import and AI pipelines must populate the appropriate semantic
 layer. These fields remain database-only and are not exposed by the current
 public API or API-CONTRACT-R2.
+
+## DEC-009 — Versioned outreach prompt and shared deadline
+
+Status: Accepted
+
+Decision: Outreach generation uses the backend-owned prompt version
+`outreach-email-v1`, composed from a fixed system instruction, a fixed user
+template, and deterministic JSON context slots. One configurable deadline is
+created at the HTTP handler and propagated unchanged through the application,
+repository, and provider layers.
+
+Reason: Stable prompt ownership makes generation behavior reviewable and keeps
+structured account evidence distinct from instructions. A shared deadline
+places one predictable bound on the entire request instead of competing layer
+timeouts.
+
+Impact: Future prompt behavior changes require an explicit prompt-version
+decision. Provider adapters must preserve the application context and may not
+silently introduce a shorter timeout. The prompt version remains internal and
+does not change API-CONTRACT-R2 or create API-CONTRACT-R3.

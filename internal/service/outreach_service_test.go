@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	apperrors "github.com/justforfreezw-zt1219906902/potential_customer_agency_back/internal/errors"
@@ -14,11 +15,15 @@ import (
 
 type outreachReaderStub struct {
 	accountReaderStub
-	data outreach.ContextData
-	err  error
+	data    outreach.ContextData
+	err     error
+	ctxSink *context.Context
 }
 
-func (s outreachReaderStub) LoadOutreachContext(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) (outreach.ContextData, error) {
+func (s outreachReaderStub) LoadOutreachContext(ctx context.Context, _ uuid.UUID, _ uuid.UUID, _ uuid.UUID) (outreach.ContextData, error) {
+	if s.ctxSink != nil {
+		*s.ctxSink = ctx
+	}
 	return s.data, s.err
 }
 
@@ -27,12 +32,29 @@ type outreachGeneratorStub struct {
 	err    error
 	called bool
 	input  outreach.Input
+	ctx    context.Context
 }
 
-func (s *outreachGeneratorStub) Generate(_ context.Context, input outreach.Input) (outreach.Output, error) {
+func (s *outreachGeneratorStub) Generate(ctx context.Context, input outreach.Input) (outreach.Output, error) {
 	s.called = true
 	s.input = input
+	s.ctx = ctx
 	return s.output, s.err
+}
+
+func TestOutreachServicePassesSameContextToRepositoryAndGenerator(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	var repositoryCtx context.Context
+	reader := outreachReaderStub{data: outreachContext(true), ctxSink: &repositoryCtx}
+	generator := &outreachGeneratorStub{output: outreach.Output{GeneratedParts: outreach.Draft{Subject: "generated"}}}
+	_, err := NewOutreachService(reader, uuid.New(), generator).Generate(ctx, uuid.New(), outreachRequest("subject"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repositoryCtx != ctx || generator.ctx != ctx {
+		t.Fatal("Outreach context was replaced between service dependencies")
+	}
 }
 
 func outreachRequest(parts ...string) models.OutreachGenerationRequest {

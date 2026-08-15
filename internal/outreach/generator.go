@@ -14,23 +14,51 @@ const (
 	CTA     Part = "cta"
 )
 
-type Draft struct{ Subject, Opening, Value, CTA string }
+type Draft struct {
+	Subject string `json:"subject"`
+	Opening string `json:"opening"`
+	Value   string `json:"value"`
+	CTA     string `json:"cta"`
+}
 type SellerCompany struct {
-	Name, Tagline, Website, Description        string
-	Products, ValuePropositions, BuyerPersonas json.RawMessage
-	CommunicationDNA                           json.RawMessage
+	Name              string          `json:"name"`
+	Tagline           string          `json:"tagline"`
+	Website           string          `json:"website"`
+	Description       string          `json:"description"`
+	Products          json.RawMessage `json:"products"`
+	ValuePropositions json.RawMessage `json:"valuePropositions"`
+	BuyerPersonas     json.RawMessage `json:"buyerPersonas"`
+	CommunicationDNA  json.RawMessage `json:"communicationDNA"`
 }
 type TargetAccount struct {
-	ID                                   string
-	Name, Industry, Website, Description string
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Industry    string `json:"industry"`
+	Website     string `json:"website"`
+	Description string `json:"description"`
 }
-type Analysis struct{ Tier, NextBestAction *string }
+type Analysis struct {
+	Tier           *string `json:"tier"`
+	NextBestAction *string `json:"nextBestAction"`
+}
 type Signal struct {
-	ID, Type, Title, Body, Strength, Relevance, SignalDate, EvidenceStatus string
-	Verified, ScoreEligible                                                bool
-	Source                                                                 *SignalSource
+	ID             string        `json:"id"`
+	Type           string        `json:"type"`
+	Title          string        `json:"title"`
+	Body           string        `json:"body"`
+	Strength       string        `json:"strength"`
+	Relevance      string        `json:"relevance"`
+	SignalDate     string        `json:"signalDate"`
+	EvidenceStatus string        `json:"evidenceStatus"`
+	Verified       bool          `json:"verified"`
+	ScoreEligible  bool          `json:"scoreEligible"`
+	Source         *SignalSource `json:"source"`
 }
-type SignalSource struct{ Name, Type, URL string }
+type SignalSource struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+	URL  string `json:"url"`
+}
 type Input struct {
 	RequestedParts    []Part          `json:"requestedParts"`
 	CurrentDraft      Draft           `json:"currentDraft"`

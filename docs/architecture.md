@@ -60,6 +60,29 @@ Communication DNA reads the latest `communication_dna` row and composes
 Buying Signal source attribution from the existing Signal/Source Document data.
 No AI generation service is implemented by this read path.
 
+Outreach email generation follows a separate provider-neutral path:
+
+```text
+POST /api/accounts/{accountId}/outreach-email/generate
+   ↓
+Outreach handler (one configured request deadline)
+   ↓
+Outreach service → Outreach repository → PostgreSQL
+   ↓
+Versioned prompt builder (`outreach-email-v1`)
+   ↓
+outreach.Generator → Gemini adapter
+```
+
+The handler creates the single end-to-end deadline. The same request context
+flows through service, repository, prompt construction, and provider execution;
+the Gemini adapter does not replace it with a provider-specific timeout.
+
+The provider-neutral prompt module owns a fixed system instruction and fixed
+user template with deterministic JSON slots. Context selection remains the
+service/repository responsibility, while the adapter supplies that structured
+context and the requested output schema to the configured provider.
+
 ## Future / Not Yet Implemented
 
 `internal/placeholder` contains interfaces reserved for future persistence,

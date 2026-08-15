@@ -3,20 +3,25 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	apperrors "github.com/justforfreezw-zt1219906902/potential_customer_agency_back/internal/errors"
 	"github.com/justforfreezw-zt1219906902/potential_customer_agency_back/internal/models"
-	"net/http"
 )
 
 type OutreachGeneratorService interface {
 	Generate(context.Context, uuid.UUID, models.OutreachGenerationRequest) (models.OutreachGenerationResponse, error)
 }
-type OutreachHandler struct{ service OutreachGeneratorService }
+type OutreachHandler struct {
+	service        OutreachGeneratorService
+	requestTimeout time.Duration
+}
 
-func NewOutreachHandler(service OutreachGeneratorService) *OutreachHandler {
-	return &OutreachHandler{service: service}
+func NewOutreachHandler(service OutreachGeneratorService, requestTimeout time.Duration) *OutreachHandler {
+	return &OutreachHandler{service: service, requestTimeout: requestTimeout}
 }
 func (h *OutreachHandler) Generate(c *gin.Context) {
 	accountID, err := uuid.Parse(c.Param("accountId"))
@@ -72,7 +77,9 @@ func (h *OutreachHandler) Generate(c *gin.Context) {
 		_ = c.Error(apperrors.BadRequest("anchorSignalId must be a valid UUID", nil))
 		return
 	}
-	response, err := h.service.Generate(c.Request.Context(), accountID, request)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), h.requestTimeout)
+	defer cancel()
+	response, err := h.service.Generate(ctx, accountID, request)
 	if err != nil {
 		_ = c.Error(err)
 		return

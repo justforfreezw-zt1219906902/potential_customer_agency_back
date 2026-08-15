@@ -58,9 +58,15 @@ the local Docker PostgreSQL container.
 | `DEMO_COMPANY_PROFILE_ID` | Required server-side UUID scope for the demo account list. |
 | `GEMINI_API_KEY` | Optional Google Gemini API key for outreach draft generation. |
 | `GEMINI_MODEL` | Gemini model name; defaults to `gemini-3.6-flash`. |
+| `OUTREACH_REQUEST_TIMEOUT_SECONDS` | Positive whole-second limit for the complete outreach request; defaults to `30`. |
 
 Use placeholders only in `.env.example`; never commit actual tokens or
 passwords.
 
 Railway does not run the demo seed. Set `DEMO_COMPANY_PROFILE_ID` only when
 the corresponding company profile exists in the target database.
+
+The outreach timeout covers the complete handler-to-database-to-Gemini flow.
+Invalid, zero, or negative values stop configuration loading. The HTTP server
+write timeout is fixed at 40 seconds so the default 30-second outreach deadline
+can return a controlled API response before the connection-level ceiling.

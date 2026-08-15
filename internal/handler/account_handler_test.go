@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -143,12 +144,16 @@ type outreachHandlerServiceStub struct {
 	calls     int
 	accountID uuid.UUID
 	request   models.OutreachGenerationRequest
+	ctx       context.Context
+	ctxErr    error
 }
 
-func (s *outreachHandlerServiceStub) Generate(_ context.Context, accountID uuid.UUID, request models.OutreachGenerationRequest) (models.OutreachGenerationResponse, error) {
+func (s *outreachHandlerServiceStub) Generate(ctx context.Context, accountID uuid.UUID, request models.OutreachGenerationRequest) (models.OutreachGenerationResponse, error) {
 	s.calls++
 	s.accountID = accountID
 	s.request = request
+	s.ctx = ctx
+	s.ctxErr = ctx.Err()
 	value := "generated"
 	return models.OutreachGenerationResponse{GeneratedParts: models.OutreachGeneratedParts{Subject: &value}}, nil
 }
@@ -172,7 +177,7 @@ func TestOutreachHandlerRejectsInvalidRequestsBeforeService(t *testing.T) {
 			service := &outreachHandlerServiceStub{}
 			router := gin.New()
 			router.Use(middleware.ErrorHandler(log.Default()))
-			router.POST("/api/accounts/:accountId/outreach-email/generate", NewOutreachHandler(service).Generate)
+			router.POST("/api/accounts/:accountId/outreach-email/generate", NewOutreachHandler(service, 30*time.Second).Generate)
 			rec := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodPost, "/api/accounts/"+tc.account+"/outreach-email/generate", strings.NewReader(tc.body))
 			req.Header.Set("Content-Type", "application/json")
@@ -188,7 +193,7 @@ func TestOutreachHandlerPassesValidRequestToService(t *testing.T) {
 	service := &outreachHandlerServiceStub{}
 	router := gin.New()
 	router.Use(middleware.ErrorHandler(log.Default()))
-	router.POST("/api/accounts/:accountId/outreach-email/generate", NewOutreachHandler(service).Generate)
+	router.POST("/api/accounts/:accountId/outreach-email/generate", NewOutreachHandler(service, 30*time.Second).Generate)
 	accountID := uuid.MustParse("00000000-0000-0000-0000-000000000901")
 	anchorID := uuid.MustParse("00000000-0000-0000-0000-000000000902")
 	draft := models.OutreachDraft{Subject: "s", Opening: "o", Value: "v", CTA: "c"}
@@ -199,6 +204,34 @@ func TestOutreachHandlerPassesValidRequestToService(t *testing.T) {
 	router.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK || service.calls != 1 || service.accountID != accountID || service.request.Persona != "exec" || service.request.AnchorSignalID != anchorID || !reflect.DeepEqual(service.request.Parts, []string{"subject", "cta"}) || service.request.CurrentDraft != draft {
 		t.Fatalf("request not preserved: status=%d calls=%d request=%+v", rec.Code, service.calls, service.request)
+	}
+}
+
+func TestOutreachHandlerAppliesConfiguredDeadlineAndPropagatesCancellation(t *testing.T) {
+	validBody := `{"persona":"exec","anchorSignalId":"00000000-0000-0000-0000-000000000902","parts":["subject"],"currentDraft":{"subject":"s","opening":"o","value":"v","cta":"c"}}`
+
+	service := &outreachHandlerServiceStub{}
+	router := gin.New()
+	router.POST("/api/accounts/:accountId/outreach-email/generate", NewOutreachHandler(service, 250*time.Millisecond).Generate)
+	req := httptest.NewRequest(http.MethodPost, "/api/accounts/00000000-0000-0000-0000-000000000901/outreach-email/generate", strings.NewReader(validBody))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(httptest.NewRecorder(), req)
+	deadline, ok := service.ctx.Deadline()
+	remaining := time.Until(deadline)
+	if !ok || remaining <= 0 || remaining > 250*time.Millisecond {
+		t.Fatalf("deadline ok=%v remaining=%v", ok, remaining)
+	}
+
+	canceledService := &outreachHandlerServiceStub{}
+	canceledRouter := gin.New()
+	canceledRouter.POST("/api/accounts/:accountId/outreach-email/generate", NewOutreachHandler(canceledService, time.Second).Generate)
+	base, cancel := context.WithCancel(context.Background())
+	cancel()
+	canceledReq := httptest.NewRequest(http.MethodPost, "/api/accounts/00000000-0000-0000-0000-000000000901/outreach-email/generate", strings.NewReader(validBody)).WithContext(base)
+	canceledReq.Header.Set("Content-Type", "application/json")
+	canceledRouter.ServeHTTP(httptest.NewRecorder(), canceledReq)
+	if canceledService.ctxErr != context.Canceled {
+		t.Fatalf("service context error=%v", canceledService.ctxErr)
 	}
 }
 

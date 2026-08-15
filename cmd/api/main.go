@@ -59,7 +59,7 @@ func main() {
 		}
 	}
 	outreachService := service.NewOutreachService(accountRepository, cfg.DemoCompanyID, outreachGenerator)
-	outreachHandler := handler.NewOutreachHandler(outreachService)
+	outreachHandler := handler.NewOutreachHandler(outreachService, cfg.OutreachRequestTimeout)
 
 	router := gin.New()
 	router.Use(gin.Logger())
@@ -73,7 +73,7 @@ func main() {
 		Addr:         ":" + cfg.Port,
 		Handler:      router,
 		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		WriteTimeout: 40 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 

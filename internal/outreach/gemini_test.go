@@ -64,27 +64,23 @@ func TestGeminiGeneratorBuildsExactSchemasAndStructuredPayload(t *testing.T) {
 				t.Fatalf("required=%v", caller.config.ResponseSchema.Required)
 			}
 		}
-		var payload map[string]any
-		if err := json.Unmarshal([]byte(caller.payload), &payload); err != nil {
-			t.Fatal(err)
-		}
-		for _, key := range []string{"persona", "currentDraft", "sellerCompany", "targetAccount", "anchorSignal", "supportingSignals"} {
-			if _, ok := payload[key]; !ok {
-				t.Fatalf("payload missing %s", key)
+		for _, section := range []string{"PERSONA", "REQUESTED PARTS", "=== SELLER COMPANY ===", "=== TARGET ACCOUNT ===", "=== PRIMARY ANCHOR SIGNAL ===", "=== SUPPORTING SIGNALS ===", "=== CURRENT DRAFT ==="} {
+			if !contains(caller.payload, section) {
+				t.Fatalf("payload missing section %q", section)
 			}
-		}
-		if !json.Valid([]byte(caller.payload)) {
-			t.Fatal("payload is not JSON")
 		}
 		if !contains(caller.payload, "Camtasia Editor") || !contains(caller.payload, "professional video editing") {
 			t.Fatal("rich seller JSON was lost")
+		}
+		if caller.config.SystemInstruction.Parts[0].Text != outreachEmailSystemPromptV1 {
+			t.Fatal("Gemini did not receive prompt V1 system instruction")
 		}
 	}
 }
 
 func TestGeminiSystemInstructionContainsStableEmailRules(t *testing.T) {
-	for _, phrase := range []string{"lowercase", "2-4 words", "does not force or assume a meeting", "below 100 words", "Never invent"} {
-		if !contains(geminiSystemInstruction, phrase) {
+	for _, phrase := range []string{"lowercase", "2-4 words", "does not force or assume a meeting", "Never invent"} {
+		if !contains(outreachEmailSystemPromptV1, phrase) {
 			t.Fatalf("system instruction missing %q", phrase)
 		}
 	}
@@ -96,11 +92,12 @@ func (blockingGeminiCaller) GenerateContent(ctx context.Context, _ string, _ []*
 	<-ctx.Done()
 	return nil, ctx.Err()
 }
-func TestGeminiGeneratorHonorsBoundedTimeout(t *testing.T) {
+func TestGeminiGeneratorUsesCallerContext(t *testing.T) {
 	generator := NewGeminiOutreachGeneratorWithCaller(blockingGeminiCaller{}, "model")
-	generator.timeout = 10 * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
 	started := time.Now()
-	_, err := generator.Generate(context.Background(), testInput(Subject))
+	_, err := generator.Generate(ctx, testInput(Subject))
 	if err == nil || time.Since(started) > time.Second {
 		t.Fatalf("timeout error=%v duration=%v", err, time.Since(started))
 	}

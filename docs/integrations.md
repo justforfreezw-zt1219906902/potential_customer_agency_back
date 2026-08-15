@@ -47,6 +47,16 @@ Communication DNA context. Gemini does not use Google Search or external
 grounding, and the endpoint does not send email or persist generated assets.
 The adapter can be replaced behind the same interface later.
 
+The backend-owned outreach prompt is versioned as `outreach-email-v1`. It uses
+a fixed system instruction and a fixed user template whose context slots are
+deterministic JSON. Seller company facts and seller messaging DNA are separate
+slots, and target Communication DNA remains separate from both. The prompt
+version is internal traceability metadata and does not change the public API.
+
+Gemini inherits the request context created by the HTTP handler, including its
+end-to-end deadline. The adapter does not add a shorter provider-only timeout,
+retry requests, or enable tools, search, URL context, or external grounding.
+
 ## Future Integrations
 
 No other external integration is currently implemented.
