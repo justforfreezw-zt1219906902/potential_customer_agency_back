@@ -87,3 +87,63 @@ func TestDNASourceNullableFieldsSerializeAsNull(t *testing.T) {
 		t.Fatalf("unexpected source JSON: %s", raw)
 	}
 }
+
+func TestParseCommunicationDNANormalizesLegacyStringSources(t *testing.T) {
+	fields := validDNAJSON()
+	fields["tone"] = []byte(`{"primary":"Technical","status":"DERIVED","sources":["nvidia.com",{"name":"Evidence Snapshot","type":null,"url":null}]}`)
+
+	dna, err := parseTestDNA(t, fields)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(dna.Tone.Sources) != 2 || dna.Tone.Sources[0].Name != nil || dna.Tone.Sources[0].Type != nil || dna.Tone.Sources[0].URL == nil || *dna.Tone.Sources[0].URL != "nvidia.com" {
+		t.Fatalf("legacy source was not normalized: %+v", dna.Tone.Sources)
+	}
+	if dna.Tone.Sources[1].Name == nil || *dna.Tone.Sources[1].Name != "Evidence Snapshot" {
+		t.Fatalf("canonical source changed: %+v", dna.Tone.Sources[1])
+	}
+
+	raw, err := json.Marshal(dna.Tone.Sources[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(raw) != `{"name":null,"type":null,"url":"nvidia.com"}` {
+		t.Fatalf("unexpected normalized API source: %s", raw)
+	}
+}
+
+func TestParseCommunicationDNARejectsInvalidSourceScalar(t *testing.T) {
+	fields := validDNAJSON()
+	fields["tone"] = []byte(`{"primary":"Technical","status":"DERIVED","sources":[123]}`)
+	if _, err := parseTestDNA(t, fields); err == nil {
+		t.Fatal("expected invalid source scalar error")
+	}
+}
+
+func TestParseCommunicationDNANormalizesLegacyDatabaseShape(t *testing.T) {
+	fields := validDNAJSON()
+	fields["tone"] = []byte(`{"primary":"Authoritative","status":"DERIVED","sources":["nvidia.com"]}`)
+	fields["vocabulary"] = []byte(`{"status":"SOURCE_BACKED","terms":[{"word":"AI factory","context":"Core","frequency":"high","source":"nvidia.com/ai","sourceType":"Product Page"}]}`)
+	fields["value_propositions"] = []byte(`[{"prop":"Built for scale","source":"nvidia.com/product","status":"SOURCE_BACKED"}]`)
+	fields["problem_framing"] = []byte(`{"description":"A platform shift","source":"nvidia.com, developer.nvidia.com","status":"SOURCE_BACKED"}`)
+	fields["proof_style"] = []byte(`{"primary":"Quantified claims","source":"nvidia.com/proof","status":"SOURCE_BACKED"}`)
+	fields["cta_patterns"] = []byte(`{"style":"Explore","examples":["Learn More"],"source":"nvidia.com/learn","status":"SOURCE_BACKED"}`)
+	fields["recurring_phrases"] = []byte(`["accelerated computing"]`)
+
+	dna, err := parseTestDNA(t, fields)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dna.Vocabulary.Terms[0].Term != "AI factory" || *dna.Vocabulary.Terms[0].Sources[0].URL != "nvidia.com/ai" || *dna.Vocabulary.Terms[0].Sources[0].Type != "Product Page" {
+		t.Fatalf("legacy vocabulary was not normalized: %+v", dna.Vocabulary.Terms[0])
+	}
+	if dna.ValuePropositions[0].Quote != "Built for scale" || *dna.ValuePropositions[0].Sources[0].URL != "nvidia.com/product" {
+		t.Fatalf("legacy value proposition was not normalized: %+v", dna.ValuePropositions[0])
+	}
+	if len(dna.ProblemFraming.Sources) != 2 || *dna.ProofStyle.Sources[0].URL != "nvidia.com/proof" || *dna.CTAPatterns.Sources[0].URL != "nvidia.com/learn" {
+		t.Fatalf("legacy singular sources were not normalized: %+v %+v %+v", dna.ProblemFraming.Sources, dna.ProofStyle.Sources, dna.CTAPatterns.Sources)
+	}
+	if dna.RecurringPhrases[0].Quote != "accelerated computing" || dna.RecurringPhrases[0].Status != "INSUFFICIENT_DATA" || dna.RecurringPhrases[0].Sources == nil {
+		t.Fatalf("legacy phrase was not normalized conservatively: %+v", dna.RecurringPhrases[0])
+	}
+}

@@ -1,7 +1,14 @@
 package models
 
-import "github.com/google/uuid"
-import "time"
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type Account struct {
 	ID                uuid.UUID        `json:"id"`
@@ -94,11 +101,53 @@ type DNAStyle struct {
 	Status      string      `json:"status"`
 	Sources     []DNASource `json:"sources"`
 }
+
+func (s *DNAStyle) UnmarshalJSON(data []byte) error {
+	type styleAlias DNAStyle
+	var value struct {
+		styleAlias
+		Source     *string `json:"source"`
+		SourceType *string `json:"sourceType"`
+	}
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*s = DNAStyle(value.styleAlias)
+	if s.Sources == nil {
+		s.Sources = sourcesFromLegacy(value.Source, value.SourceType)
+	}
+	return nil
+}
+
 type DNASource struct {
 	Name *string `json:"name"`
 	Type *string `json:"type"`
 	URL  *string `json:"url"`
 }
+
+func (s *DNASource) UnmarshalJSON(data []byte) error {
+	raw := bytes.TrimSpace(data)
+	if len(raw) > 0 && raw[0] == '"' {
+		var sourceURL string
+		if err := json.Unmarshal(raw, &sourceURL); err != nil {
+			return err
+		}
+		if strings.TrimSpace(sourceURL) == "" {
+			return fmt.Errorf("DNA source string must not be empty")
+		}
+		s.Name, s.Type, s.URL = nil, nil, &sourceURL
+		return nil
+	}
+
+	type sourceAlias DNASource
+	var source sourceAlias
+	if err := json.Unmarshal(raw, &source); err != nil {
+		return err
+	}
+	*s = DNASource(source)
+	return nil
+}
+
 type DNAVocabulary struct {
 	Status string    `json:"status"`
 	Terms  []DNATerm `json:"terms"`
@@ -109,17 +158,79 @@ type DNATerm struct {
 	Frequency *string     `json:"frequency"`
 	Sources   []DNASource `json:"sources"`
 }
+
+func (t *DNATerm) UnmarshalJSON(data []byte) error {
+	type termAlias DNATerm
+	var value struct {
+		termAlias
+		Word       string  `json:"word"`
+		Source     *string `json:"source"`
+		SourceType *string `json:"sourceType"`
+	}
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*t = DNATerm(value.termAlias)
+	if t.Term == "" {
+		t.Term = value.Word
+	}
+	if t.Sources == nil {
+		t.Sources = sourcesFromLegacy(value.Source, value.SourceType)
+	}
+	return nil
+}
+
 type DNAEvidence struct {
 	Quote   string      `json:"quote"`
 	Status  string      `json:"status"`
 	Sources []DNASource `json:"sources"`
 }
+
+func (e *DNAEvidence) UnmarshalJSON(data []byte) error {
+	type evidenceAlias DNAEvidence
+	var value struct {
+		evidenceAlias
+		Prop       string  `json:"prop"`
+		Source     *string `json:"source"`
+		SourceType *string `json:"sourceType"`
+	}
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*e = DNAEvidence(value.evidenceAlias)
+	if e.Quote == "" {
+		e.Quote = value.Prop
+	}
+	if e.Sources == nil {
+		e.Sources = sourcesFromLegacy(value.Source, value.SourceType)
+	}
+	return nil
+}
+
 type DNAProblem struct {
 	Description *string     `json:"description"`
 	Quote       *string     `json:"quote"`
 	Status      string      `json:"status"`
 	Sources     []DNASource `json:"sources"`
 }
+
+func (p *DNAProblem) UnmarshalJSON(data []byte) error {
+	type problemAlias DNAProblem
+	var value struct {
+		problemAlias
+		Source     *string `json:"source"`
+		SourceType *string `json:"sourceType"`
+	}
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*p = DNAProblem(value.problemAlias)
+	if p.Sources == nil {
+		p.Sources = sourcesFromLegacy(value.Source, value.SourceType)
+	}
+	return nil
+}
+
 type DNACallToAction struct {
 	Style       *string     `json:"style"`
 	Description *string     `json:"description"`
@@ -127,11 +238,73 @@ type DNACallToAction struct {
 	Status      string      `json:"status"`
 	Sources     []DNASource `json:"sources"`
 }
+
+func (c *DNACallToAction) UnmarshalJSON(data []byte) error {
+	type callToActionAlias DNACallToAction
+	var value struct {
+		callToActionAlias
+		Source     *string `json:"source"`
+		SourceType *string `json:"sourceType"`
+	}
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*c = DNACallToAction(value.callToActionAlias)
+	if c.Sources == nil {
+		c.Sources = sourcesFromLegacy(value.Source, value.SourceType)
+	}
+	return nil
+}
+
 type DNAPhrase struct {
 	Quote       string      `json:"quote"`
 	Description *string     `json:"description"`
 	Status      string      `json:"status"`
 	Sources     []DNASource `json:"sources"`
+}
+
+func (p *DNAPhrase) UnmarshalJSON(data []byte) error {
+	raw := bytes.TrimSpace(data)
+	if len(raw) > 0 && raw[0] == '"' {
+		if err := json.Unmarshal(raw, &p.Quote); err != nil {
+			return err
+		}
+		p.Status = "INSUFFICIENT_DATA"
+		p.Sources = make([]DNASource, 0)
+		return nil
+	}
+
+	type phraseAlias DNAPhrase
+	var value struct {
+		phraseAlias
+		Source     *string `json:"source"`
+		SourceType *string `json:"sourceType"`
+	}
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return err
+	}
+	*p = DNAPhrase(value.phraseAlias)
+	if p.Sources == nil {
+		p.Sources = sourcesFromLegacy(value.Source, value.SourceType)
+	}
+	return nil
+}
+
+func sourcesFromLegacy(source, sourceType *string) []DNASource {
+	if source == nil {
+		return nil
+	}
+	values := strings.Split(*source, ",")
+	sources := make([]DNASource, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		url := value
+		sources = append(sources, DNASource{Type: sourceType, URL: &url})
+	}
+	return sources
 }
 
 type SignalSummary struct {
