@@ -25,17 +25,19 @@ type Client struct {
 	baseURL    string
 	httpClient *http.Client
 	token      string
+	ownerID    string
 	logger     *log.Logger
 }
 
-func NewClient(token string, logger *log.Logger) *Client {
+func NewClient(token, ownerID string, logger *log.Logger) *Client {
 	return &Client{
 		baseURL: defaultBaseURL,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		token:  token,
-		logger: logger,
+		token:   token,
+		ownerID: ownerID,
+		logger:  logger,
 	}
 }
 
@@ -136,7 +138,7 @@ func (c *Client) FindContactByEmail(ctx context.Context, email string) (*Contact
 
 func (c *Client) CreateContact(ctx context.Context, lead models.LeadRequest) (Contact, error) {
 	payload := contactPropertiesRequest{
-		Properties: contactProperties(lead),
+		Properties: contactProperties(lead, c.ownerID),
 	}
 
 	body, err := c.doJSON(ctx, http.MethodPost, "/crm/v3/objects/contacts", payload)
@@ -158,7 +160,7 @@ func (c *Client) CreateContact(ctx context.Context, lead models.LeadRequest) (Co
 
 func (c *Client) UpdateContact(ctx context.Context, contactID string, lead models.LeadRequest) (Contact, error) {
 	payload := contactPropertiesRequest{
-		Properties: contactProperties(lead),
+		Properties: contactProperties(lead, c.ownerID),
 	}
 
 	body, err := c.doJSON(ctx, http.MethodPatch, "/crm/v3/objects/contacts/"+url.PathEscape(contactID), payload)
@@ -289,12 +291,12 @@ type associationRequest struct {
 	DefinitionID string `json:"definitionId"`
 }
 
-func contactProperties(lead models.LeadRequest) map[string]string {
+func contactProperties(lead models.LeadRequest, ownerID string) map[string]string {
 	properties := map[string]string{
 		"email":            lead.WorkEmail,
 		"firstname":        lead.FirstName,
 		"lastname":         lead.FamilyName,
-		"hubspot_owner_id": lead.Owner,
+		"hubspot_owner_id": ownerID,
 	}
 
 	for key, value := range properties {

@@ -75,7 +75,7 @@ func (s *LeadService) CreateLead(ctx context.Context, lead models.LeadRequest) (
 
 	s.logger.Printf("Lead created in HubSpot: contact_id=%s email=%s", contact.ID, lead.WorkEmail)
 
-	if err := s.email.SendLeadNotification(ctx, lead, contact.ID, time.Now()); err != nil {
+	if err := s.email.SendLeadNotification(ctx, lead, time.Now()); err != nil {
 		s.logger.Printf("failed to send internal notification email: contact_id=%s email=%s error=%v", contact.ID, lead.WorkEmail, err)
 	}
 

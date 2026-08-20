@@ -42,7 +42,7 @@ func main() {
 	}
 	defer dbPool.Close()
 
-	hubSpotClient := hubspot.NewClient(cfg.HubSpotAccessToken, logger)
+	hubSpotClient := hubspot.NewClient(cfg.HubSpotAccessToken, cfg.HubSpotOwnerID, logger)
 	emailService := email.NewResendEmailService(cfg.ResendAPIKey, cfg.ResendFromEmail, cfg.NotificationEmails, logger)
 	leadService := service.NewLeadService(hubSpotClient, emailService, logger)
 	leadHandler := handler.NewLeadHandler(leadService, logger)

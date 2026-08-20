@@ -19,7 +19,7 @@ const (
 )
 
 type EmailService interface {
-	SendLeadNotification(ctx context.Context, lead models.LeadRequest, hubSpotContactID string, submittedAt time.Time) error
+	SendLeadNotification(ctx context.Context, lead models.LeadRequest, submittedAt time.Time) error
 }
 
 type ResendEmailService struct {
@@ -42,7 +42,7 @@ func NewResendEmailService(apiKey string, from string, recipients []string, logg
 	}
 }
 
-func (s *ResendEmailService) SendLeadNotification(ctx context.Context, lead models.LeadRequest, hubSpotContactID string, submittedAt time.Time) error {
+func (s *ResendEmailService) SendLeadNotification(ctx context.Context, lead models.LeadRequest, submittedAt time.Time) error {
 	if strings.TrimSpace(s.apiKey) == "" {
 		return fmt.Errorf("RESEND_API_KEY is required")
 	}
@@ -57,7 +57,7 @@ func (s *ResendEmailService) SendLeadNotification(ctx context.Context, lead mode
 		From:    s.from,
 		To:      s.recipients,
 		Subject: fmt.Sprintf("New Lead Submitted - %s", lead.Company),
-		Text:    buildLeadNotificationBody(lead, hubSpotContactID, submittedAt),
+		Text:    buildLeadNotificationBody(lead, submittedAt),
 	}
 
 	body, err := json.Marshal(payload)
@@ -95,14 +95,18 @@ type sendEmailRequest struct {
 	Text    string   `json:"text"`
 }
 
-func buildLeadNotificationBody(lead models.LeadRequest, hubSpotContactID string, submittedAt time.Time) string {
+func buildLeadNotificationBody(lead models.LeadRequest, submittedAt time.Time) string {
+	leadContext := strings.TrimSpace(lead.Context)
+	if leadContext == "" {
+		leadContext = "(not provided)"
+	}
 	return fmt.Sprintf(
-		"First Name: %s\nFamily Name: %s\nWork Email: %s\nCompany: %s\nHubSpot Contact ID: %s\nSubmission Time: %s",
+		"First Name: %s\nFamily Name: %s\nWork Email: %s\nCompany: %s\nContext: %s\nSubmission Time: %s",
 		lead.FirstName,
 		lead.FamilyName,
 		lead.WorkEmail,
 		lead.Company,
-		hubSpotContactID,
+		leadContext,
 		submittedAt.UTC().Format(time.RFC3339),
 	)
 }

@@ -11,7 +11,7 @@ type LeadRequest struct {
 	FamilyName string `json:"familyName"`
 	Company    string `json:"company"`
 	WorkEmail  string `json:"workEmail"`
-	Owner      string `json:"owner"`
+	Context    string `json:"context"`
 }
 
 func (r LeadRequest) Validate() error {

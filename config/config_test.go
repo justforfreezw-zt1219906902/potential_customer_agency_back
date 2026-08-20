@@ -7,6 +7,7 @@ import (
 
 func TestLoadGeminiConfiguration(t *testing.T) {
 	t.Setenv("DEMO_COMPANY_PROFILE_ID", "00000000-0000-0000-0000-000000000001")
+	t.Setenv("HUBSPOT_OWNER_ID", "test-owner")
 	t.Setenv("GEMINI_API_KEY", "")
 	t.Setenv("GEMINI_MODEL", "")
 	t.Setenv("OUTREACH_REQUEST_TIMEOUT_SECONDS", "")
@@ -27,7 +28,32 @@ func TestLoadRejectsInvalidOutreachRequestTimeout(t *testing.T) {
 	for _, value := range []string{"0", "-1", "abc"} {
 		t.Run(value, func(t *testing.T) {
 			t.Setenv("DEMO_COMPANY_PROFILE_ID", "00000000-0000-0000-0000-000000000001")
+			t.Setenv("HUBSPOT_OWNER_ID", "test-owner")
 			t.Setenv("OUTREACH_REQUEST_TIMEOUT_SECONDS", value)
+			defer func() {
+				if recover() == nil {
+					t.Fatalf("expected panic for %q", value)
+				}
+			}()
+			_ = Load()
+		})
+	}
+}
+
+func TestLoadHubSpotOwnerConfiguration(t *testing.T) {
+	t.Setenv("DEMO_COMPANY_PROFILE_ID", "00000000-0000-0000-0000-000000000001")
+	t.Setenv("HUBSPOT_OWNER_ID", "  test-owner-123  ")
+	cfg := Load()
+	if cfg.HubSpotOwnerID != "test-owner-123" {
+		t.Fatalf("HubSpotOwnerID=%q", cfg.HubSpotOwnerID)
+	}
+}
+
+func TestLoadRejectsMissingHubSpotOwner(t *testing.T) {
+	for _, value := range []string{"", "   "} {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv("DEMO_COMPANY_PROFILE_ID", "00000000-0000-0000-0000-000000000001")
+			t.Setenv("HUBSPOT_OWNER_ID", value)
 			defer func() {
 				if recover() == nil {
 					t.Fatalf("expected panic for %q", value)

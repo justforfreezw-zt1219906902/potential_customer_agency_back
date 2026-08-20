@@ -14,6 +14,7 @@ import (
 type Config struct {
 	Port                   string
 	HubSpotAccessToken     string
+	HubSpotOwnerID         string
 	CORSAllowedOrigins     string
 	ResendAPIKey           string
 	ResendFromEmail        string
@@ -40,6 +41,7 @@ func Load() Config {
 	return Config{
 		Port:                   getEnv("PORT", "8080"),
 		HubSpotAccessToken:     os.Getenv("HUBSPOT_ACCESS_TOKEN"),
+		HubSpotOwnerID:         requiredEnv("HUBSPOT_OWNER_ID"),
 		CORSAllowedOrigins:     getEnv("CORS_ALLOWED_ORIGINS", "*"),
 		ResendAPIKey:           os.Getenv("RESEND_API_KEY"),
 		ResendFromEmail:        getEnv("RESEND_FROM_EMAIL", "Mi Goto <onboarding@resend.dev>"),
@@ -54,6 +56,14 @@ func Load() Config {
 		GeminiModel:            getEnv("GEMINI_MODEL", "gemini-3.6-flash"),
 		OutreachRequestTimeout: parsePositiveSeconds("OUTREACH_REQUEST_TIMEOUT_SECONDS", 30),
 	}
+}
+
+func requiredEnv(key string) string {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		panic(fmt.Sprintf("%s is required", key))
+	}
+	return value
 }
 
 func parsePositiveSeconds(key string, fallback int) time.Duration {

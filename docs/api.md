@@ -20,11 +20,11 @@ Content-Type: application/json
 
 ```json
 {
-  "firstName": "John",
-  "familyName": "Doe",
-  "company": "Example Inc",
-  "workEmail": "john@example.com",
-  "owner": "90579791"
+  "firstName": "Tom",
+  "familyName": "Zhao",
+  "company": "Example Company",
+  "workEmail": "tom@example.com",
+  "context": "Optional context that helps us prepare the first conversation."
 }
 ```
 
@@ -36,7 +36,7 @@ Content-Type: application/json
 | `familyName` | string | Yes | Lead family name / last name. |
 | `company` | string | Yes | Company name. |
 | `workEmail` | string | Yes | Work email address. Must be a valid email. |
-| `owner` | string | No | HubSpot owner ID. If provided, it is sent to HubSpot as `hubspot_owner_id`. |
+| `context` | string | No | Optional context for preparing the first conversation. |
 
 ### Validation Rules
 
@@ -146,7 +146,11 @@ Contact properties:
 | `firstName` | `firstname` |
 | `familyName` | `lastname` |
 | `workEmail` | `email` |
-| `owner` | `hubspot_owner_id` |
+
+HubSpot contact ownership is not part of the public request. The backend applies
+the server-side `HUBSPOT_OWNER_ID` to both new and existing contacts. `context`
+is included in the internal notification only and is not sent to an
+undocumented HubSpot property.
 
 Company behavior:
 
@@ -178,7 +182,7 @@ First Name
 Family Name
 Work Email
 Company
-HubSpot Contact ID
+Context
 Submission Time
 ```
 
@@ -188,11 +192,11 @@ Submission Time
 curl -X POST http://localhost:8080/api/lead \
   -H "Content-Type: application/json" \
   -d '{
-    "firstName": "John",
-    "familyName": "Doe",
-    "company": "Example Inc",
-    "workEmail": "john@example.com",
-    "owner": "90579791"
+    "firstName": "Tom",
+    "familyName": "Zhao",
+    "company": "Example Company",
+    "workEmail": "tom@example.com",
+    "context": "Interested in discussing account intelligence."
   }'
 ```
 

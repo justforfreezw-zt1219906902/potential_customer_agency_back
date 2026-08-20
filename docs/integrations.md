@@ -4,6 +4,8 @@
 
 HubSpot is the lead system of record for the current submission flow. The
 client authenticates with `HUBSPOT_ACCESS_TOKEN` and uses the HubSpot CRM APIs.
+Contact ownership is configured by the backend through the required
+`HUBSPOT_OWNER_ID` value.
 
 For each request, the service:
 
@@ -20,7 +22,11 @@ The request fields map as follows:
 | `firstName` | `firstname` |
 | `familyName` | `lastname` |
 | `workEmail` | `email` |
-| `owner` | `hubspot_owner_id` |
+| Backend `HUBSPOT_OWNER_ID` | `hubspot_owner_id` |
+
+The configured owner is applied during both contact creation and contact
+update. Public lead requests cannot select or override it. Optional lead
+`context` is deliberately not mapped to a guessed HubSpot custom property.
 
 HubSpot failures are returned as an external-service error, normally HTTP 502.
 The contact/company operation is not rolled back by this application.
@@ -31,9 +37,10 @@ Resend sends an internal notification after HubSpot succeeds. It uses
 `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and `NOTIFICATION_EMAILS`.
 
 The subject is `New Lead Submitted - <company>`. The body includes the lead
-fields, HubSpot contact ID, and submission time. `RESEND_FROM_EMAIL` must be a
-valid sender for the Resend account: use the Resend testing sender for local
-sandbox testing, or a sender on a verified domain in production.
+fields, optional context, and submission time. Empty context
+is rendered as `(not provided)`. `RESEND_FROM_EMAIL` must be a valid sender for
+the Resend account: use the Resend testing sender for local sandbox testing, or
+a sender on a verified domain in production.
 
 If Resend fails, the error is logged and the API still returns HTTP 200 because
 the HubSpot operation already succeeded.

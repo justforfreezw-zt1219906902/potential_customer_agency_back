@@ -117,3 +117,18 @@ Impact: Future prompt behavior changes require an explicit prompt-version
 decision. Provider adapters must preserve the application context and may not
 silently introduce a shorter timeout. The prompt version remains internal and
 does not change API-CONTRACT-R2 or create API-CONTRACT-R3.
+
+## DEC-010 — HubSpot ownership is backend-controlled
+
+Status: Accepted
+
+Decision: Public lead submissions cannot provide HubSpot ownership. The backend
+uses the required `HUBSPOT_OWNER_ID` configuration for both contact creation and
+contact update.
+
+Reason: CRM routing and ownership are internal operational policy and must not
+be controlled or overridden by an unauthenticated browser request.
+
+Impact: `owner` is not part of `LeadRequest` or the public `/api/lead` contract.
+Deployments must configure `HUBSPOT_OWNER_ID`; future CRM ownership changes must
+remain behind the integration boundary.

@@ -45,6 +45,7 @@ the local Docker PostgreSQL container.
 | --- | --- |
 | `PORT` | HTTP listening port. |
 | `HUBSPOT_ACCESS_TOKEN` | HubSpot API authentication. |
+| `HUBSPOT_OWNER_ID` | Required HubSpot owner assigned to contacts submitted through `POST /api/lead`. |
 | `CORS_ALLOWED_ORIGINS` | Allowed browser origins, comma-separated. |
 | `RESEND_API_KEY` | Resend API authentication. |
 | `RESEND_FROM_EMAIL` | Resend sender address. |

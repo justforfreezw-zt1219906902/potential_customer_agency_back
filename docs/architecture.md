@@ -18,6 +18,11 @@ The current request path is `POST /api/lead`. The service validates the lead,
 ensures the HubSpot company exists, creates or updates the contact, associates
 the contact with the company, and sends an internal notification.
 
+HubSpot ownership is integration configuration, not public lead data. The
+HubSpot client receives `HUBSPOT_OWNER_ID` during dependency wiring and applies
+it to both contact creation and update. Optional public `context` remains out of
+HubSpot properties and is carried into the internal notification email.
+
 ## Responsibilities
 
 | Area | Responsibility |
